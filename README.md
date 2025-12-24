@@ -32,13 +32,26 @@ An Android-based application designed to manage Islamic community events and pra
 ## 📂 Project Structure
 islamic/
 ├── app/
-│ ├── src/
-│ │ ├── main/
-│ │ │ ├── java/com/example/islamic/
-│ │ │ ├── res/
-│ │ │ ├── assets/
-│ │ │ └── AndroidManifest.xml
-│ ├── build.gradle
-├── gradle/
-├── build.gradle
-└── settings.gradle
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/com/example/islamic/
+│   │   │   │   ├── admin/              # Admin-related activities and logic
+│   │   │   │   ├── user/               # User-related activities and logic
+│   │   │   │   ├── adapters/           # RecyclerView adapters
+│   │   │   │   ├── models/             # Data models (Events, Prayer Times, Users)
+│   │   │   │   ├── services/           # Background services (alarms, notifications)
+│   │   │   │   └── utils/              # Helper and utility classes
+│   │   │   ├── res/
+│   │   │   │   ├── layout/             # XML layout files
+│   │   │   │   ├── drawable/           # Images and icons
+│   │   │   │   ├── values/             # Colors, strings, and styles
+│   │   │   │   └── mipmap/             # App launcher icons
+│   │   │   ├── assets/
+│   │   │   │   └── dashboard/          # HTML files for analytics dashboards
+│   │   │   └── AndroidManifest.xml
+│   │   └── test/                       # Unit tests
+│   └── build.gradle
+├── gradle/                             # Gradle wrapper files
+├── build.gradle                        # Project-level Gradle configuration
+├── settings.gradle
+└── README.md
