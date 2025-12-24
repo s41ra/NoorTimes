@@ -30,6 +30,7 @@ An Android-based application designed to manage Islamic community events and pra
 - **Analytics:** WebView-based dashboards (HTML)
 
 ## 📂 Project Structure
-islamic/ > app/ > src/ > main/ > java/com/example/islamic/ (admin, user, adapters, models, services, utils) > res/ (layout, drawable, values, mipmap) > assets/ (dashboard) > AndroidManifest.xml > test/ > build.gradle | gradle/ | build.gradle | settings.gradle | README.md
+islamic/ → app/src/main → java/com/example/islamic (admin, user, adapters, models, services, utils) → res (layout, drawable, values, mipmap) → assets (dashboard) → AndroidManifest.xml → test → build.gradle | gradle | settings.gradle | README.md
+
 
 
