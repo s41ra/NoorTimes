@@ -1,0 +1,388 @@
+package com.example.islamic;
+
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper; // Added for Handler initialization
+import android.os.PowerManager;
+import android.provider.Settings;
+import android.util.Log; // Added for better logging
+import android.view.View;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+public class clock extends AppCompatActivity {
+
+    private static final String TAG = "ClockActivity";
+
+    // UI elements
+    private TextView nextPrayerDisplay;
+    private TextView feedbackMessage;
+    private ProgressBar progressSpinner;
+
+    // Data structures
+    private List<PrayerTime> todayPrayerTimes = new ArrayList<>();
+    // Note: timeFormat and dateFormatter are instance variables of the Activity
+    private final SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+    private final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.US);
+
+    // !! REPLACE WITH YOUR ACTUAL URL !!
+    private final String DATABASE_URL = "https://clothsuggest-default-rtdb.firebaseio.com/";
+
+    // References for the real-time listener
+    private ValueEventListener prayerTimeListener;
+    private DatabaseReference prayerTimeRef;
+
+    // Handler for refreshing the countdown UI (Initialized with Looper.getMainLooper())
+    private final Handler uiUpdateHandler = new Handler(Looper.getMainLooper());
+
+    // Runnable that updates the countdown every second
+    private final Runnable uiUpdateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            displayNextPrayerTime();
+            // Schedule the next update in 1 second
+            uiUpdateHandler.postDelayed(this, 1000);
+        }
+    };
+
+
+    // Define the static nested class for prayer times - MUST be public static
+    public static class PrayerTime {
+        public final String name;
+        public final String time;
+
+        public PrayerTime(String name, String time) {
+            this.name = name;
+            this.time = time;
+        }
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_clock);
+
+        // Initialize UI components
+        nextPrayerDisplay = findViewById(R.id.next_prayer_display);
+        feedbackMessage = findViewById(R.id.feedback_message);
+        progressSpinner = findViewById(R.id.progress_spinner);
+
+        // 1. Start the permanent background service immediately
+        startPrayerTimeService();
+
+        // 2. Ask the user to ignore battery optimizations for reliable alerts
+        requestBatteryOptimizationExemption();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 2. Start fetching data for UI display and set up real-time listener (for data updates)
+        setupUIUpdates();
+
+        // 3. Start the UI countdown timer when the app is visible
+        uiUpdateHandler.post(uiUpdateRunnable);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Stop the UI countdown timer when the app is no longer visible
+        uiUpdateHandler.removeCallbacks(uiUpdateRunnable);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Detach the UI listener when the activity is destroyed
+        removePrayerTimeListener();
+    }
+
+    /**
+     * Starts the Foreground Service for background tracking and notification.
+     */
+    private void startPrayerTimeService() {
+        Intent serviceIntent = new Intent(this, PrayerTimeService.class);
+        ContextCompat.startForegroundService(this, serviceIntent);
+        // Using Log instead of Toast in case of repeated calls
+        Log.d(TAG, "Prayer time tracking service started.");
+    }
+
+    /**
+     * Requests the user to whitelist the app from battery optimizations.
+     */
+    private void requestBatteryOptimizationExemption() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            String packageName = getPackageName();
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+
+            if (pm != null && !pm.isIgnoringBatteryOptimizations(packageName)) {
+                Intent intent = new Intent();
+                intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                intent.setData(Uri.parse("package:" + packageName));
+
+                if (intent.resolveActivity(getPackageManager()) != null) {
+                    startActivity(intent);
+                    Toast.makeText(this, "For reliable prayer alerts, please select 'Allow' or 'Not optimized'.", Toast.LENGTH_LONG).show();
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Initializes the Firebase listener to fetch today's prayer times for the UI.
+     * Corrected to handle different Firebase data structures.
+     */
+    private void setupUIUpdates() {
+        removePrayerTimeListener();
+
+        feedbackMessage.setText("Fetching today's times...");
+        progressSpinner.setVisibility(View.VISIBLE);
+
+        FirebaseDatabase database = FirebaseDatabase.getInstance(DATABASE_URL);
+        final String dateString = dateFormatter.format(new Date());
+        String path = "prayerTimes/" + dateString;
+        prayerTimeRef = database.getReference(path);
+
+        // Initialize the listener
+        prayerTimeListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot snapshot) {
+                progressSpinner.setVisibility(View.GONE);
+
+                if (snapshot.exists()) {
+                    List<PrayerTime> times = new ArrayList<>();
+
+                    // Iterate through all children (which are prayer names)
+                    for (DataSnapshot prayerSnapshot : snapshot.getChildren()) {
+                        String key = prayerSnapshot.getKey(); // e.g., "Fajr"
+                        String timeStr = null;
+
+                        // Case 1: Time is stored directly under the prayer name (e.g., "Fajr": "05:00")
+                        if (prayerSnapshot.getValue() instanceof String) {
+                            timeStr = (String) prayerSnapshot.getValue();
+
+                            // Case 2: Time is stored in a nested map (e.g., "Fajr": {"time": "05:00"})
+                        } else if (prayerSnapshot.getValue() instanceof Map) {
+                            try {
+                                @SuppressWarnings("unchecked")
+                                Map<String, String> nestedData = (Map<String, String>) prayerSnapshot.getValue();
+                                timeStr = nestedData.get("time");
+                            } catch (ClassCastException e) {
+                                Log.w(TAG, "Failed to cast nested map for key: " + key, e);
+                            }
+                        }
+
+                        if (timeStr != null && key != null) {
+                            // Normalize the name
+                            String normalizedName = key.equalsIgnoreCase("Isha") ? "Isha'a" : key;
+                            times.add(new PrayerTime(normalizedName, timeStr));
+                        }
+                    }
+
+                    if (!times.isEmpty()) {
+                        // FIX APPLIED: Using a lambda that calls the static method timeToMinutes
+                        times.sort(Comparator.comparingInt(pt -> clock.timeToMinutes(pt.time)));
+
+                        todayPrayerTimes = times;
+
+                        // Immediately update UI with new data
+                        displayNextPrayerTime();
+                    } else {
+                        nextPrayerDisplay.setText("--:--");
+                        feedbackMessage.setText("No valid prayer times found for " + dateString + ".");
+                        todayPrayerTimes = new ArrayList<>();
+                    }
+
+                } else {
+                    nextPrayerDisplay.setText("--:--");
+                    feedbackMessage.setText("No data available for " + dateString + ".");
+                    todayPrayerTimes = new ArrayList<>();
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError error) {
+                progressSpinner.setVisibility(View.GONE);
+                nextPrayerDisplay.setText("Error");
+                feedbackMessage.setText("Connection Failed: " + error.getMessage());
+                todayPrayerTimes = new ArrayList<>();
+            }
+        };
+
+        // Attach the real-time listener
+        prayerTimeRef.addValueEventListener(prayerTimeListener);
+    }
+
+    /**
+     * Helper method to safely remove the ValueEventListener.
+     */
+    private void removePrayerTimeListener() {
+        if (prayerTimeRef != null && prayerTimeListener != null) {
+            prayerTimeRef.removeEventListener(prayerTimeListener);
+            prayerTimeRef = null;
+            prayerTimeListener = null;
+        }
+    }
+
+
+    /**
+     * Helper method to calculate the exact Calendar time for a PrayerTime,
+     * handling the case where the time must be set for tomorrow.
+     */
+    private Calendar getPrayerCalendar(PrayerTime pt, Calendar now) throws ParseException {
+        Calendar prayerCal = Calendar.getInstance();
+        // Set the date component (today's date)
+        prayerCal.set(now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH));
+
+        // Get the time component from the PrayerTime string
+        Date prayerTimeOnly = timeFormat.parse(pt.time);
+        Calendar tempCal = Calendar.getInstance();
+        tempCal.setTime(prayerTimeOnly);
+
+        // Set the time components on prayerCal
+        prayerCal.set(Calendar.HOUR_OF_DAY, tempCal.get(Calendar.HOUR_OF_DAY));
+        prayerCal.set(Calendar.MINUTE, tempCal.get(Calendar.MINUTE));
+        prayerCal.set(Calendar.SECOND, 0);
+        prayerCal.set(Calendar.MILLISECOND, 0);
+
+        // If the resulting time is in the past, it must be for tomorrow.
+        if (prayerCal.getTimeInMillis() < now.getTimeInMillis() - 1000) { // check if past now (with 1s buffer)
+            prayerCal.add(Calendar.DAY_OF_YEAR, 1);
+        }
+        return prayerCal;
+    }
+
+    /**
+     * Finds the next prayer and displays the time remaining as a running countdown.
+     */
+    private void displayNextPrayerTime() {
+        if (todayPrayerTimes.isEmpty()) {
+            return;
+        }
+
+        Calendar now = Calendar.getInstance();
+        long nowMillis = now.getTimeInMillis();
+        int nowMinutes = (now.get(Calendar.HOUR_OF_DAY) * 60) + now.get(Calendar.MINUTE);
+
+        PrayerTime nextPrayer = null;
+        for (PrayerTime pt : todayPrayerTimes) {
+            // FIX: Now calling the static version of timeToMinutes
+            if (clock.timeToMinutes(pt.time) > nowMinutes) {
+                nextPrayer = pt;
+                break;
+            }
+        }
+
+        if (nextPrayer == null) {
+            // All today's prayers are over. Next is tomorrow's Fajr (first prayer).
+            if (!todayPrayerTimes.isEmpty()) {
+                PrayerTime fajr = todayPrayerTimes.get(0);
+                try {
+                    Calendar tomorrowFajrCal = getPrayerCalendar(fajr, now);
+                    long timeUntilPrayerMs = tomorrowFajrCal.getTimeInMillis() - nowMillis;
+                    String countdown = formatTimeRemaining(timeUntilPrayerMs);
+
+                    nextPrayerDisplay.setText(countdown);
+                    feedbackMessage.setText("Today's prayers complete. Next is tomorrow's " + fajr.name + " at " + fajr.time);
+
+                } catch (ParseException e) {
+                    Log.e(TAG, "Error calculating tomorrow's time.", e);
+                    nextPrayerDisplay.setText("--:--");
+                    feedbackMessage.setText("Error calculating tomorrow's time.");
+                }
+            }
+        } else {
+            // Found the next prayer for today
+            try {
+                Calendar prayerCal = getPrayerCalendar(nextPrayer, now);
+                long timeUntilPrayerMs = prayerCal.getTimeInMillis() - nowMillis;
+
+                if (timeUntilPrayerMs <= 1000) { // Less than 1 second remaining
+                    // Prayer just started.
+                    nextPrayerDisplay.setText("Now!");
+                    feedbackMessage.setText(nextPrayer.name + " time has started.");
+                } else {
+                    String countdown = formatTimeRemaining(timeUntilPrayerMs);
+                    nextPrayerDisplay.setText(countdown);
+                    feedbackMessage.setText("Next Prayer: " + nextPrayer.name + " at " + nextPrayer.time);
+                }
+
+            } catch (ParseException e) {
+                Log.e(TAG, "Error calculating time remaining.", e);
+                nextPrayerDisplay.setText("--:--");
+                feedbackMessage.setText("Error calculating time remaining for " + nextPrayer.name);
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // STATIC UTILITY METHODS (Moved and fixed for Comparator)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Helper to format time difference (milliseconds) into H:MM:SS or M:SS format.
+     */
+    private String formatTimeRemaining(long milliseconds) {
+        // ... (original implementation is correct for formatting) ...
+        long seconds = TimeUnit.MILLISECONDS.toSeconds(milliseconds);
+        long minutes = TimeUnit.SECONDS.toMinutes(seconds);
+        long hours = TimeUnit.MINUTES.toHours(minutes);
+
+        seconds %= 60;
+        minutes %= 60;
+
+        if (hours > 0) {
+            return String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds);
+        } else {
+            return String.format(Locale.US, "%02d:%02d", minutes, seconds);
+        }
+    }
+
+    /**
+     * Converts a HH:MM time string to minutes past midnight.
+     * **FIX:** Made STATIC to be used by Comparator.
+     * **FIX:** Uses a local SimpleDateFormat since it can't access instance variables.
+     */
+    private static int timeToMinutes(String timeStr) {
+        try {
+            // Must create a local SimpleDateFormat instance
+            SimpleDateFormat localTimeFormat = new SimpleDateFormat("HH:mm", Locale.US);
+
+            Date date = localTimeFormat.parse(timeStr);
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(date);
+            return (cal.get(Calendar.HOUR_OF_DAY) * 60) + cal.get(Calendar.MINUTE);
+        } catch (ParseException e) {
+            // Use Log.e with a generic tag since the Activity's TAG is not available here
+            Log.e("PrayerTimeUtils", "Error parsing time: " + timeStr, e);
+            return 0;
+        }
+    }
+}
