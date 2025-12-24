@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard | Islamic App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* ====================================================================
+        1. Base & Utilities (DARK THEME - LANDSCAPE)
+        User preference: I am using landscape style.
+        ==================================================================== */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #172B26; /* Dark Theme Background */
+            color: #f1f5f9; /* Tailwind slate-100 for default text */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            min-height: 100vh;
+        }
+
+        /* Card Container for both List and Form */
+        .list-card, .form-card {
+            background: #213A33; /* Card Background */
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+        }
+
+        /* Field labels/Headers */
+        .field-label {
+            font-size: 0.75rem;
+            color: #94a3b8; /* Tailwind slate-400 - Light gray for labels */
+            font-weight: 600;
+            margin-bottom: 2px;
+            display: block;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        
+        /* Form Input/Textarea/Search Styling */
+        .app-input, .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background-color: #1e3a33; /* Darker background */
+            border: 1px solid #2c473f;
+            border-radius: 8px;
+            color: #f1f5f9;
+            font-size: 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .app-input:focus, .search-input:focus {
+            outline: none;
+            border-color: #34d399; /* Emerald-400 focus ring */
+            box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.5);
+        }
+        textarea.app-input {
+            resize: vertical;
+        }
+
+        /* Primary Button (SMS Submit) */
+        .app-button-primary {
+            background-color: #059669; /* Emerald-600 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            width: 100%;
+        }
+        .app-button-primary:hover {
+            background-color: #047857; /* Emerald-700 */
+        }
+        .app-button-primary:disabled {
+            background-color: #1e3a33; /* Muted color when disabled */
+            cursor: not-allowed;
+        }
+
+
+        /* Individual User Item */
+        .user-item {
+            border-bottom: 1px solid #2c473f; /* Darker line separator */
+            padding: 1rem 0;
+            transition: background-color 0.2s;
+        }
+        .user-item:last-child {
+            border-bottom: none;
+        }
+        .user-item:hover {
+            background-color: transparent; 
+            margin: 0; 
+            padding: 1rem 0;
+            border-radius: 0;
+        }
+
+        /* User Username/ID text */
+        .user-id-text {
+            font-size: 0.95rem;
+            color: #34d399; /* Emerald-400 */
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center p-4">
+
+<main class="w-full max-w-4xl mx-auto pt-4 pb-4">
+    <h1 class="text-3xl font-extrabold text-white mb-8 text-center">Admin Panel</h1>
+
+    <div class="form-card mb-8">
+        <h2 class="text-xl font-bold text-gray-100 mb-6">Send Event SMS Notification</h2>
+        <form id="sms-event-form" class="space-y-4">
+            <div>
+                <label for="event-title" class="field-label">Event Title</label>
+                <input
+                    type="text"
+                    id="event-title"
+                    class="app-input"
+                    placeholder="e.g., Friday Prayer at the Main Mosque"
+                    required
+                />
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="event-date" class="field-label">Date</label>
+                    <input
+                        type="date"
+                        id="event-date"
+                        class="app-input"
+                        required
+                    />
+                </div>
+                <div>
+                    <label for="event-time" class="field-label">Time</label>
+                    <input
+                        type="time"
+                        id="event-time"
+                        class="app-input"
+                        required
+                    />
+                </div>
+            </div>
+
+            <div>
+                <label for="event-description" class="field-label">SMS Message / Description</label>
+                <textarea
+                    id="event-description"
+                    class="app-input"
+                    rows="3"
+                    maxlength="160"
+                    placeholder="Keep it brief (max 160 characters for a standard SMS)."
+                    required
+                ></textarea>
+            </div>
+
+            <button type="submit" id="sms-submit-button" class="app-button-primary">
+                Send SMS Notification to All Users
+            </button>
+            <p id="sms-status" class="text-center text-sm font-medium mt-2 hidden"></p>
+        </form>
+    </div>
+    
+    <div class="list-card">
+        <h2 class="text-xl font-bold text-gray-100 mb-6">Registered Users: Username & Mobile</h2>
+        <div class="mb-6">
+            <input 
+                type="text" 
+                id="search-users" 
+                placeholder="Search by Username/ID or Mobile Number..." 
+                class="search-input"
+                aria-label="Search users"
+            >
+        </div>
+        <div class="grid grid-cols-12 text-sm font-semibold mb-4 text-gray-400 border-b border-gray-600 pb-2 uppercase tracking-wider">
+            <div class="col-span-6">Username (ID)</div>
+            <div class="col-span-6">Mobile Phone</div>
+        </div>
+
+        <div id="users-list-container">
+            <p id="loading-status" class="text-center text-gray-400 font-medium mt-8">Loading user data from Firestore...</p>
+            <p id="error-status" class="text-center text-red-400 font-medium mt-8 hidden"></p>
+        </div>
+        
+        <p id="no-users" class="text-center text-gray-400 font-medium mt-8 hidden">
+            No users found.
+        </p>
+        <p id="no-search-results" class="text-center text-gray-400 font-medium mt-8 hidden">
+            No users match your search criteria.
+        </p>
+    </div>
+
+</main>
+
+<script type="module">
+    // --- 1. Firebase Setup & Initialization ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyByJOqTUojiL1wN7_i_cHMAukuJWzIZVck",
+        authDomain: "clothsuggest.firebaseapp.com",
+        databaseURL: "https://clothsuggest-default-rtdb.firebaseio.com/",
+        projectId: "clothsuggest",
+        storageBucket: "clothsuggest.firebasestorage.app",
+        messagingSenderId: "758790774735",
+        appId: "1:758774735:web:5f5ea17048273416cd7cba",
+        measurementId: "G-4H8WZL0S4F"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const dbFirestore = getFirestore(app);
+
+    // --- 2. DOM Elements & Global State ---
+    const usersListContainer = document.getElementById("users-list-container");
+    const searchInput = document.getElementById("search-users");
+    const smsForm = document.getElementById("sms-event-form");
+    const smsStatusEl = document.getElementById("sms-status");
+    const smsSubmitButton = document.getElementById("sms-submit-button");
+    
+    let allUsersData = [];
+
+    // --- IPROG API CONFIGURATION ---
+    // ⚠️ WARNING: Hardcoding API tokens in client-side code is a security risk. 
+    // It's highly recommended to use a secure backend proxy for production.
+    const IPROG_API_URL = 'https://sms.iprogtech.com/api/v1/sms_messages';
+    const IPROG_API_TOKEN = '7f0f0f0e27545dcc65e81e2554cb21a4d3e9f88c'; // Replace with your actual token
+    // ---------------------------------
+    
+    /**
+    * Helper function to convert 24-hour time string (HH:MM) to 12-hour format with AM/PM.
+    * @param {string} time24hr The time string in 'HH:MM' format.
+    * @returns {string} The time string in 'h:mm AM/PM' format.
+    */
+    const convertToAmPm = (time24hr) => {
+        if (!time24hr) return '';
+        const [hours, minutes] = time24hr.split(':').map(Number);
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const hour12 = hours % 12 || 12; // The hour '0' should be '12'
+        return `${hour12}:${String(minutes).padStart(2, '0')} ${ampm}`;
+    };
+
+
+    /**
+    * Helper function to send an SMS to a single number via IPROG API.
+    * @param {string} to The recipient mobile number (e.g., 09xxxxxxxxx or 639xxxxxxxxx).
+    * @param {string} message The SMS content.
+    */
+    const sendIprogSms = async (to, message) => {
+        // IPROG API uses phone_number in the request body/payload.
+        const data = {
+            api_token: IPROG_API_TOKEN,
+            message: message,
+            phone_number: to // Use the mobile number directly
+        };
+
+        // Convert data to URL-encoded string as required by the IPROG API example
+        const urlEncodedData = new URLSearchParams(data).toString();
+
+        const requestOptions = {
+            method: "POST",
+            headers: {
+                // Must be 'application/x-www-form-urlencoded' for URLSearchParams body
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: urlEncodedData,
+            redirect: "follow"
+        };
+
+        try {
+            const response = await fetch(IPROG_API_URL, requestOptions);
+            // IPROG API seems to return a 200/201 even if the message status is not 'sent' yet.
+            // We read the response as text/json depending on the content.
+            const contentType = response.headers.get("content-type");
+            const isJson = contentType && contentType.includes("application/json");
+            const result = isJson ? await response.json() : await response.text();
+            
+            if (response.ok) {
+                // Assume successful submission if response.ok is true.
+                return { success: true, number: to, result };
+            } else {
+                // Handle non-200 responses (e.g., 400, 500)
+                const errorMessage = isJson ? (result.error || result.message || JSON.stringify(result)) : result;
+                return { success: false, number: to, error: `HTTP ${response.status}: ${errorMessage}` };
+            }
+        } catch (error) {
+            // Handle network errors
+            return { success: false, number: to, error: `Network Error: ${error.message}` };
+        }
+    };
+
+
+    // --- 3. SMS Form Logic ---
+    const handleSmsSubmit = async (e) => {
+        e.preventDefault();
+        
+        smsStatusEl.classList.add('hidden');
+        smsSubmitButton.disabled = true;
+        smsSubmitButton.textContent = 'Preparing to send...';
+
+        const eventTitle = document.getElementById("event-title").value.trim();
+        const eventDate = document.getElementById("event-date").value;
+        const eventTime24hr = document.getElementById("event-time").value;
+        const eventDescription = document.getElementById("event-description").value.trim();
+        
+        // Convert 24-hour time to 12-hour AM/PM format
+        const eventTimeAmPm = convertToAmPm(eventTime24hr);
+
+        // Final message construction
+        const fullMessage = 
+            `EVENT: ${eventTitle}.\n` +
+            `Date: ${eventDate} @ ${eventTimeAmPm}.\n` +
+            `Message: ${eventDescription}\n\n` + 
+            `from: Noortimes`;
+
+        if (allUsersData.length === 0) {
+            smsStatusEl.textContent = '❌ No registered users found to send SMS to.';
+            smsStatusEl.classList.remove('text-green-400');
+            smsStatusEl.classList.add('text-red-400');
+            smsStatusEl.classList.remove('hidden');
+            smsSubmitButton.disabled = false;
+            smsSubmitButton.textContent = 'Send SMS Notification to All Users';
+            return;
+        }
+
+        smsSubmitButton.textContent = `Sending to ${allUsersData.length} users...`;
+        
+        let successfulSubmissions = 0;
+        let failedSubmissions = 0;
+
+        // Process all users sequentially
+        for (const user of allUsersData) {
+            const mobileNumber = user.mobile_phone;
+            
+            if (!mobileNumber) {
+                console.warn(`User ${user.userId} has no mobile number.`);
+                continue; // Skip users without a number
+            }
+            
+            try {
+                const result = await sendIprogSms(mobileNumber, fullMessage);
+                
+                if (result.success) {
+                    successfulSubmissions++;
+                } else {
+                    failedSubmissions++;
+                    console.error(`Failed to submit SMS to ${result.number}: ${result.error}`);
+                }
+            } catch (error) {
+                failedSubmissions++;
+                console.error(`Unexpected error during SMS submission for ${mobileNumber}: ${error.message}`);
+            }
+        }
+        
+        // Update UI status after all messages have been processed
+        const statusMessage = `✅ Finished submission! Successfully ${successfulSubmissions} --- ${failedSubmissions}.`;
+        smsStatusEl.textContent = statusMessage;
+        smsStatusEl.classList.remove('hidden');
+        smsStatusEl.classList.add(failedSubmissions > 0 ? 'text-yellow-400' : 'text-green-400');
+        smsForm.reset(); 
+
+        smsSubmitButton.disabled = false;
+        smsSubmitButton.textContent = 'Send SMS Notification to All Users';
+    };
+
+
+    // --- 4. Utility Functions (User List Rendering/Filtering - Unchanged) ---
+    const createUserItemHtml = (user) => {
+        const listMobilePhone = user.mobile_phone || 'N/A';
+        
+        // As per your saved configuration, username is derived from signup code/ID.
+        const usernameDisplay = user.userId || 'N/A'; 
+        
+        return `
+            <div class="user-item grid grid-cols-12 items-center">
+                <div class="col-span-6 break-words">
+                    <span class="user-id-text">${usernameDisplay}</span>
+                </div>
+                <div class="col-span-6 text-sm text-gray-200 break-words">
+                    ${listMobilePhone}
+                </div>
+            </div>
+        `;
+    };
+
+    const renderUserList = (users) => {
+        const loadingStatusEl = document.getElementById("loading-status");
+        const noUsersEl = document.getElementById("no-users");
+        const noSearchResultsEl = document.getElementById("no-search-results");
+
+        if (searchInput.value.trim() === '') {
+            usersListContainer.innerHTML = '';
+        }
+        
+        loadingStatusEl.classList.add('hidden');
+        noSearchResultsEl.classList.add('hidden');
+        noUsersEl.classList.add('hidden');
+
+        if (users.length === 0) {
+            if (searchInput.value.trim() !== '' && allUsersData.length > 0) {
+                noSearchResultsEl.classList.remove('hidden');
+            } else if (searchInput.value.trim() === '' && allUsersData.length === 0) {
+                noUsersEl.classList.remove('hidden'); 
+            }
+            return;
+        }
+
+        const usersHtml = users.map(createUserItemHtml).join('');
+        usersListContainer.innerHTML = usersHtml;
+    };
+
+    const filterUsers = () => {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+
+        if (searchTerm === '') {
+            renderUserList(allUsersData);
+            return;
+        }
+
+        const filteredUsers = allUsersData.filter(user => {
+            const usernameMatch = (user.userId || '').toLowerCase().includes(searchTerm);
+            const mobileMatch = (user.mobile_phone || '').toLowerCase().includes(searchTerm);
+            
+            return usernameMatch || mobileMatch;
+        });
+
+        renderUserList(filteredUsers);
+    };
+
+
+    // --- 5. Main Logic (Data Fetch with Realtime Listener - Unchanged) ---
+    function setupUserRealtimeListener() {
+        const loadingStatusEl = document.getElementById("loading-status");
+        const errorStatusEl = document.getElementById("error-status");
+        
+        loadingStatusEl.classList.remove('hidden');
+        errorStatusEl.classList.add('hidden');
+
+        const usersCollectionRef = collection(dbFirestore, "islamusers");
+
+        const unsubscribe = onSnapshot(usersCollectionRef, (snapshot) => {
+            loadingStatusEl.classList.add('hidden');
+            allUsersData = []; 
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const userId = doc.id; 
+                
+                allUsersData.push({
+                    userId: userId,
+                    ...data 
+                });
+            });
+
+            allUsersData.sort((a, b) => (a.userId || '').localeCompare(b.userId || ''));
+
+            // Re-render the filtered list
+            filterUsers();
+            
+        }, (error) => {
+            console.error("Error getting real-time user list:", error);
+            loadingStatusEl.classList.add('hidden');
+            errorStatusEl.textContent = `Failed to stream user list: ${error.message}`;
+            errorStatusEl.classList.remove('hidden');
+        });
+    }
+
+    // --- 6. Execution and Event Listeners ---
+    searchInput.addEventListener('input', filterUsers);
+    smsForm.addEventListener('submit', handleSmsSubmit);
+    setupUserRealtimeListener();
+</script>
+
+</body>
+</html>

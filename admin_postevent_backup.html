@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard - Islamic App</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+/* ====================================================================
+1. Base & Utilities
+==================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* --- NEW THEME COLORS --- */
+:root {
+  --color-dark-bg: #172B26;
+  --color-card-bg: #213A33;
+  --color-primary-green: #10b981; /* Tailwind emerald-500 equivalent */
+  --color-dark-primary-green: #059669; /* Tailwind emerald-600 equivalent */
+  --color-text-light: #e5e7eb; /* Light text for dark backgrounds */
+  --color-text-medium: #a1a1aa; /* Muted text */
+  --color-border-dark: #374151; /* Darker border for contrast */
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--color-dark-bg);
+  color: var(--color-text-light);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-moz-smoothing: grayscale;
+}
+.fixed-header-height {
+  /* REMOVED: Since the header is removed, this class is effectively made unnecessary for layout adjustment, but kept for safe measures elsewhere if needed. Setting to 0 */
+  height: 0px;
+}
+.hidden-file-input {
+  display: none;
+}
+#event-map {
+  height: 300px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  margin-top: 10px;
+  width: 100%;
+}
+
+/* ====================================================================
+2. Component Styles
+==================================================================== */
+.dashboard-card {
+  background: var(--color-card-bg);
+  border-radius: 0;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+  border-top: 5px solid var(--color-dark-primary-green);
+  padding: 20px;
+  /* Ensure dashboard card takes up the full width/height space for the content area */
+  min-height: 100vh !important; /* Force full coverage */
+}
+@media (min-width: 768px) {
+  .dashboard-card {
+    padding: 40px;
+  }
+}
+/* REMOVED: .admin-header style is no longer needed */
+
+.submit-button {
+  background-color: var(--color-primary-green);
+  background-image: linear-gradient(to right, var(--color-primary-green), var(--color-dark-primary-green));
+  color: white;
+  padding: 12px 25px;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+}
+.submit-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+}
+.submit-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
+}
+.submit-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
+}
+/* Input field styling for dark theme */
+.form-input-dark {
+  background-color: #2c443e;
+  color: var(--color-text-light);
+  border-color: var(--color-border-dark);
+}
+.form-input-dark::placeholder {
+  color: var(--color-text-medium);
+}
+.form-input-dark:focus {
+  border-color: var(--color-primary-green);
+  box-shadow: 0 0 0 1px var(--color-primary-green);
+}
+
+.custom-file-input {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 15px;
+  background-color: #2c443e;
+  border: 1px solid var(--color-border-dark);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--color-text-light);
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.custom-file-input:hover {
+  background-color: #38504a;
+  border-color: #525252;
+}
+.custom-file-input-icon {
+  margin-right: 8px;
+  color: var(--color-primary-green);
+}
+.map-search-button {
+  background-color: #059669;
+  color: white;
+  padding: 8px 15px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: background-color 0.2s ease-in-out;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.map-search-button:hover {
+  background-color: #047857;
+}
+
+/* Map Instructions Box - Themed */
+.map-instructions {
+  background-color: #1e3a8a;
+  border-color: #60a5fa;
+  color: #eff6ff;
+}
+.map-instructions-title {
+  color: #93c5fd;
+}
+
+/* Style for the Manage Events button */
+.manage-button {
+  background-color: #dc2626;
+  color: white;
+  padding: 8px 15px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.3);
+  font-size: 0.875rem;
+}
+.manage-button:hover {
+  background-color: #b91c1c;
+  transform: translateY(-1px);
+}
+.manage-button:active {
+  transform: translateY(0);
+}
+
+/* Style for the Back button */
+.back-button {
+  background-color: #4b5563;
+  color: white;
+  padding: 8px 15px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: background-color 0.2s ease-in-out;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.back-button:hover {
+  background-color: #374151;
+}
+
+/* Event List Item Styling */
+.event-item {
+    background-color: #2c443e;
+    border-left: 5px solid var(--color-primary-green);
+}
+.event-title-manage {
+    color: var(--color-primary-green);
+    font-weight: 600;
+}
+.event-details-text {
+    color: var(--color-text-medium);
+}
+
+/* ====================================================================
+3. MODAL STYLES
+==================================================================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.75); /* Darker backdrop */
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+.modal-content {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-border-dark);
+    padding: 30px;
+    border-radius: 12px;
+    max-width: 450px;
+    width: 90%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+}
+.modal-overlay.active .modal-content {
+    transform: scale(1);
+}
+.modal-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f87171; /* Red for deletion */
+    border-bottom: 2px solid #ef4444;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+}
+.modal-message {
+    color: var(--color-text-light);
+    line-height: 1.6;
+    margin-bottom: 25px;
+}
+.modal-button-red {
+    background-color: #ef4444; /* Tailwind red-500 */
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+.modal-button-red:hover {
+    background-color: #dc2626; /* Tailwind red-600 */
+}
+.modal-button-gray {
+    background-color: #4b5563; /* Tailwind gray-600 */
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+.modal-button-gray:hover {
+    background-color: #374151; /* Tailwind gray-700 */
+}
+
+</style>
+</head>
+<body class="bg-gray-50 flex flex-col items-center min-h-screen">
+
+<div class="w-full fixed-header-height"></div>
+
+<main class="w-full flex-grow px-0 pb-0"> <div class="dashboard-card min-h-[500px] mt-0 w-full">
+
+    <div id="upload-view">
+        <div class="flex justify-between items-center border-b border-gray-600 pb-2 mb-4">
+            <h3 id="upload-view-title" class="text-xl md:text-2xl font-semibold text-white">Upload New Event</h3>
+            <button id="manage-events-btn" class="manage-button">
+                Manage Events
+            </button>
+        </div>
+
+
+        <form id="event-upload-form" class="space-y-4 pt-4">
+
+            <div>
+                <label for="event-title" class="block text-sm font-medium text-gray-300 mb-2">Event Title</label>
+                <input type="text" id="event-title" name="eventTitle" required class="form-input-dark mt-1 block w-full rounded-lg shadow-sm focus:ring-emerald-500 p-3 border" placeholder="e.g., Weekly Quran Study Circle">
+            </div>
+
+            <div>
+                <label for="event-description" class="block text-sm font-medium text-gray-300 mb-2">Event Description (Details)</label>
+                <textarea id="event-description" name="eventDescription" rows="3" required class="form-input-dark mt-1 block w-full rounded-lg shadow-sm focus:ring-emerald-500 p-3 border resize-none" placeholder="e.g., Covering Surah Al-Baqarah (Part 3). Brothers and sisters welcome."></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="event-date" class="block text-sm font-medium text-gray-300 mb-2">Calendar Date</label>
+                    <input type="date" id="event-date" name="eventDate" required class="form-input-dark mt-1 block w-full rounded-lg shadow-sm focus:ring-emerald-500 p-3 border">
+                </div>
+                <div>
+                    <label for="event-time" class="block text-sm font-medium text-gray-300 mb-2">Time of Event</label>
+                    <input type="time" id="event-time" name="eventTime" required class="form-input-dark mt-1 block w-full rounded-lg shadow-sm focus:ring-emerald-500 p-3 border">
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <p class="text-sm font-semibold text-white">1. Locate Event on Map 🗺️</p>
+
+                <div>
+                    <label for="event-address" class="block text-sm font-medium text-gray-300 mb-2">Search Location Name</label>
+                    <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+                        <input type="text" id="event-address" placeholder="e.g., Davao City" class="form-input-dark mt-1 block w-full rounded-lg shadow-sm focus:ring-emerald-500 p-3 border">
+                        <button type="button" id="map-search-btn" class="map-search-button flex-shrink-0 w-full sm:w-auto">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                            </svg>
+                            Search
+                        </button>
+                    </div>
+                </div>
+
+                <div id="event-map" class="bg-gray-700"></div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="event-latitude" class="block text-sm font-medium text-gray-300 mb-2">Latitude (Auto-filled / Drag Pin)</label>
+                        <input type="text" id="event-latitude" name="eventLatitude" required class="form-input-dark mt-1 block w-full rounded-lg shadow-sm focus:ring-emerald-500 p-3 border bg-[#334D46] cursor-not-allowed" placeholder="7.0722" pattern="^-?\d{1,3}(\.\d{1,10})?$" title="A valid latitude is required." readonly>
+                    </div>
+                    <div>
+                        <label for="event-longitude" class="block text-sm font-medium text-gray-300 mb-2">Longitude (Auto-filled / Drag Pin)</label>
+                        <input type="text" id="event-longitude" name="eventLongitude" required class="form-input-dark mt-1 block w-full rounded-lg shadow-sm focus:ring-emerald-500 p-3 border bg-[#334D46] cursor-not-allowed" placeholder="125.6131" pattern="^-?\d{1,3}(\.\d{1,10})?$" title="A valid longitude is required." readonly>
+                    </div>
+                </div>
+
+                <p class="text-sm p-3 border map-instructions rounded-lg">
+                    <span class="font-bold map-instructions-title">INSTRUCTIONS:</span> Enter the location name above and click **Search**. The map will update. You can **drag the pin** to fine-tune the coordinates, which will update automatically below.
+                </p>
+            </div>
+
+            <div>
+                <label for="event-photo" class="block text-sm font-medium text-gray-300 mb-2">Optional Event Photo</label>
+                <label for="event-photo" class="custom-file-input w-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 custom-file-input-icon" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-4 3 3 5-5z" clip-rule="evenodd" />
+                    </svg>
+                    <span id="file-name">Upload Image (Optional)</span>
+                </label>
+                <input type="file" id="event-photo" name="eventPhoto" accept="image/*" class="hidden-file-input">
+            </div>
+
+            <div>
+                <button type="submit" class="submit-button w-full text-lg">
+                    Publish Event
+                </button>
+            </div>
+        </form>
+
+        <p id="submission-feedback" class="text-center mt-6 hidden text-gray-300"></p>
+    </div>
+
+    <div id="manage-view" class="hidden">
+        <div class="flex justify-between items-center border-b border-gray-600 pb-2 mb-4">
+            <h3 class="text-xl md:text-2xl font-semibold text-white">Manage & Edit Events</h3>
+            <button id="back-to-upload-btn" class="back-button">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-1 -mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+                </svg>
+                Back to Upload
+            </button>
+        </div>
+
+        <p id="manage-feedback" class="text-center mt-6 hidden text-gray-300"></p>
+
+        <div id="event-list" class="space-y-4">
+        </div>
+    </div>
+
+</div>
+</main>
+
+<div id="confirmation-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 id="modal-title" class="modal-title"></h3>
+        <p id="modal-message" class="modal-message"></p>
+        <div class="flex justify-end space-x-3">
+            <button id="modal-cancel-btn" class="modal-button-gray">Cancel</button>
+            <button id="modal-confirm-btn" class="modal-button-red">Yes, Delete</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script type="module">
+// ====================================================================
+// JAVASCRIPT LOGIC
+// ====================================================================
+
+// 1. Firebase Imports
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import { getDatabase, ref as dbRef, push, serverTimestamp, remove, update, get } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
+
+// 2. Firebase Configuration (NOTE: REPLACE WITH YOUR ACTUAL CONFIG IF DIFFERENT)
+const firebaseConfig = {
+    apiKey: "AIzaSyByJOqTUojiL1wN7_i_cHMAukuJWzIZVck",
+    authDomain: "clothsuggest.firebaseapp.com",
+    databaseURL: "https://clothsuggest-default-rtdb.firebaseio.com/",
+    projectId: "clothsuggest",
+    storageBucket: "clothsuggest.firebasestorage.app",
+    messagingSenderId: "758790774735",
+    appId: "1:758790774735:web:5f5ea17048273416cd7cba",
+    measurementId: "G-4H8WZL0S4F"
+};
+
+// 3. Initialize Firebase Services
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const storage = getStorage(app);
+
+// 4. DOM Element References
+const eventForm = document.getElementById("event-upload-form");
+const submissionFeedbackMsg = document.getElementById("submission-feedback");
+const manageFeedbackMsg = document.getElementById("manage-feedback");
+const eventPhotoInput = document.getElementById("event-photo");
+const fileNameSpan = document.getElementById("file-name");
+// const welcomeMessageH2 = document.getElementById("welcome-message"); // Removed from HTML
+const submitButton = eventForm.querySelector('.submit-button');
+const eventTitleInput = document.getElementById('event-title');
+const manageEventsBtn = document.getElementById('manage-events-btn');
+const backToUploadBtn = document.getElementById('back-to-upload-btn');
+const uploadViewTitle = document.getElementById('upload-view-title');
+
+// VIEW REFERENCES
+const uploadView = document.getElementById('upload-view');
+const manageView = document.getElementById('manage-view');
+const eventList = document.getElementById('event-list');
+
+// Location DOM References
+const mapSearchBtn = document.getElementById('map-search-btn');
+const eventAddressInput = document.getElementById('event-address');
+const eventLatitudeInput = document.getElementById('event-latitude');
+const eventLongitudeInput = document.getElementById('event-longitude');
+
+// Modal References
+const modalOverlay = document.getElementById('confirmation-modal');
+const modalTitle = document.getElementById('modal-title');
+const modalMessage = document.getElementById('modal-message');
+const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+const modalCancelBtn = document.getElementById('modal-cancel-btn');
+
+
+// New: Edit Mode Variables
+let isEditMode = false;
+let currentEditKey = null;
+let currentImageUrl = null;
+
+// Create Cancel Edit button
+const cancelEditBtn = document.createElement('button');
+cancelEditBtn.id = 'cancel-edit-btn';
+cancelEditBtn.type = 'button';
+cancelEditBtn.className = 'back-button w-full text-lg mt-4';
+cancelEditBtn.innerHTML = 'Cancel Edit';
+
+
+// 5. Personalize Welcome Message (Functionality remains for poster data)
+const posterUsername = localStorage.getItem('adminUsername') || 'Admin';
+// Removed: welcomeMessageH2.textContent update, as the element is removed.
+// const formattedUsername = posterUsername.charAt(0).toUpperCase() + posterUsername.slice(1);
+// welcomeMessageH2.textContent = `Welcome, ${formattedUsername}! 👋`;
+
+
+// ====================================================================
+// MODAL IMPLEMENTATION
+// ====================================================================
+
+/**
+ * Shows the custom confirmation modal.
+ * @param {string} title The title for the modal.
+ * @param {string} message The confirmation message (can contain HTML).
+ * @param {function} onConfirm Callback function to execute on confirmation.
+ */
+function showModalConfirm(title, message, onConfirm) {
+    modalTitle.textContent = title;
+    modalMessage.innerHTML = message;
+
+    modalConfirmBtn.onclick = null;
+    modalCancelBtn.onclick = null;
+
+    modalConfirmBtn.onclick = () => {
+        onConfirm();
+        closeModal();
+    };
+    modalCancelBtn.onclick = closeModal;
+
+    modalOverlay.classList.add('active');
+}
+
+/**
+ * Hides the custom modal.
+ */
+function closeModal() {
+    modalOverlay.classList.remove('active');
+}
+
+// Close modal if user clicks outside the content area
+modalOverlay.addEventListener('click', (e) => {
+    if (e.target.id === 'confirmation-modal') {
+        closeModal();
+    }
+});
+
+// A placeholder for a simple notification if needed
+function showModalAlert(message) {
+    console.log(`[Notification]: ${message}`);
+}
+
+// ====================================================================
+// CORE EVENT FETCH & RENDER FUNCTIONS
+// ====================================================================
+
+/**
+ * Creates and returns an HTML element for a single event in the manage list.
+ */
+function createEventListItem(key, eventData) {
+    const posterName = eventData.poster || 'Unknown Admin';
+    const imageUrl = eventData.imageUrl || '';
+
+    const eventItem = document.createElement('div');
+    eventItem.id = `event-key-${key}`;
+    eventItem.className = 'event-item p-4 rounded-lg shadow-md flex flex-col md:flex-row justify-between md:items-center';
+
+    eventItem.innerHTML = `
+        <div>
+            <p class="event-title-manage">${eventData.title}</p>
+            <p class="event-details-text text-xs mt-1">
+                ${eventData.date} at ${eventData.time} | Poster: ${posterName}
+            </p>
+        </div>
+        <div class="flex space-x-2 mt-2 md:mt-0 flex-shrink-0">
+            <button data-action="edit" data-event-key="${key}" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-3 rounded text-xs transition-colors">Edit</button>
+            <button data-action="delete" data-event-key="${key}" data-image-url="${imageUrl}" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded text-xs transition-colors">Delete</button>
+        </div>
+    `;
+
+    return eventItem;
+}
+
+/**
+ * Fetches all events from the database and renders them in the manage view.
+ */
+async function loadAndRenderEvents() {
+    manageFeedbackMsg.textContent = "Fetching events from Firebase database...";
+    manageFeedbackMsg.className = "text-center mt-6 text-blue-400 font-medium p-3 rounded bg-[#1e3a8a] border border-blue-700";
+    manageFeedbackMsg.classList.remove('hidden');
+
+    eventList.innerHTML = '';
+
+    try {
+        const eventsRef = dbRef(db, 'events');
+        const snapshot = await get(eventsRef);
+
+        if (snapshot.exists()) {
+            const eventsObject = snapshot.val();
+            const keys = Object.keys(eventsObject);
+
+            keys.forEach(key => {
+                const eventData = eventsObject[key];
+                if (eventData && eventData.title) {
+                    const itemElement = createEventListItem(key, eventData);
+                    eventList.appendChild(itemElement);
+                }
+            });
+
+            manageFeedbackMsg.textContent = `Successfully loaded ${keys.length} event(s).`;
+            manageFeedbackMsg.className = "text-center mt-6 text-emerald-400 font-medium p-3 rounded bg-[#204a3e] border border-emerald-700";
+
+        } else {
+            manageFeedbackMsg.textContent = "No events found in the database. Start by uploading one!";
+            manageFeedbackMsg.className = "text-center mt-6 text-yellow-400 font-medium p-3 rounded bg-[#3a3424] border border-yellow-700";
+        }
+    } catch (error) {
+        console.error("Error fetching events:", error);
+        manageFeedbackMsg.textContent = `Error loading events: ${error.message}. Please check your Firebase rules/connection.`;
+        manageFeedbackMsg.className = "text-center mt-6 text-red-400 font-medium p-3 rounded bg-[#5c2424] border border-red-700";
+    }
+}
+
+
+// ====================================================================
+// VIEW SWITCHING & EDIT MODE UTILITIES
+// ====================================================================
+
+/**
+ * Resets the form state from Edit Mode to Upload Mode.
+ */
+function exitEditMode() {
+    isEditMode = false;
+    currentEditKey = null;
+    currentImageUrl = null;
+
+    uploadViewTitle.textContent = 'Upload New Event';
+    submitButton.textContent = 'Publish Event';
+    // Ensure the submit button returns to its default style/class
+    submitButton.classList.remove('bg-yellow-600', 'hover:bg-yellow-700', 'text-white', 'font-bold', 'py-3', 'px-6', 'rounded-lg');
+    submitButton.classList.add('submit-button');
+
+    // Remove the Cancel button if it exists
+    cancelEditBtn.remove();
+
+    // Reset form data and image file name
+    eventForm.reset();
+    fileNameSpan.textContent = "Upload Image (Optional)";
+
+    // Set map to default view
+    map.setView([7.0722, 125.6131], 12);
+    marker.setLatLng([7.0722, 125.6131]);
+    updateCoordinates(7.0722, 125.6131);
+
+    // Clear feedback
+    submissionFeedbackMsg.classList.add('hidden');
+}
+
+function showUploadView() {
+    uploadView.classList.remove('hidden');
+    manageView.classList.add('hidden');
+    submissionFeedbackMsg.classList.add('hidden');
+    manageFeedbackMsg.classList.add('hidden');
+    exitEditMode();
+}
+
+function showManageView() {
+    uploadView.classList.add('hidden');
+    manageView.classList.remove('hidden');
+    submissionFeedbackMsg.classList.add('hidden');
+
+    loadAndRenderEvents();
+}
+
+// Event Listeners for view switching
+manageEventsBtn.addEventListener('click', showManageView);
+backToUploadBtn.addEventListener('click', showUploadView);
+cancelEditBtn.addEventListener('click', showUploadView);
+
+
+// ====================================================================
+// IMAGE/STORAGE UTILITIES
+// ====================================================================
+
+/**
+ * Extracts the file path (e.g., 'event_images/filename.jpg') from a Firebase Storage download URL.
+ */
+function getFilePathFromUrl(url) {
+    if (!url) return null;
+    try {
+        const parts = url.split('/o/');
+        if (parts.length < 2) return null;
+
+        const filePathWithParams = parts[1];
+        const filePath = filePathWithParams.split('?')[0];
+
+        return decodeURIComponent(filePath);
+
+    } catch (e) {
+        console.error("Failed to parse storage URL:", e);
+        return null;
+    }
+}
+
+
+// ====================================================================
+// DELETE FUNCTIONS
+// ====================================================================
+
+/**
+ * Performs the actual deletion from DB and Storage.
+ */
+async function performDelete(eventKey, imageUrl, eventTitle, eventElement) {
+
+    manageFeedbackMsg.textContent = `Processing deletion for "${eventTitle}"...`;
+    manageFeedbackMsg.className = "text-center mt-6 text-blue-400 font-medium p-3 rounded bg-[#1e3a8a] border border-blue-700";
+    manageFeedbackMsg.classList.remove('hidden');
+
+    try {
+        // 1. Delete the Image from Firebase Storage (if URL exists)
+        if (imageUrl) {
+            const filePath = getFilePathFromUrl(imageUrl);
+            if (filePath) {
+                const imageRef = storageRef(storage, filePath);
+                // Use deleteObject, catch error if file not found
+                await deleteObject(imageRef).catch(err => {
+                    console.warn(`Image delete warning for ${eventKey}: ${err.code}`);
+                });
+            }
+        }
+
+        // 2. Delete the event from Realtime Database
+        const eventRef = dbRef(db, `events/${eventKey}`);
+        await remove(eventRef);
+
+        // 3. Success Feedback and DOM removal
+        manageFeedbackMsg.textContent = `Event "${eventTitle}" deleted successfully!`;
+        manageFeedbackMsg.className = "text-center mt-6 text-emerald-400 font-medium p-3 rounded bg-[#204a3e] border border-emerald-700";
+
+        if (eventElement) {
+             eventElement.remove();
+             if (eventList.children.length === 0) {
+                 manageFeedbackMsg.textContent = "All events deleted. No events left in the database.";
+                 manageFeedbackMsg.className = "text-center mt-6 text-yellow-400 font-medium p-3 rounded bg-[#3a3424] border border-yellow-700";
+             }
+        }
+
+    } catch (error) {
+        console.error("Error deleting event:", error);
+        manageFeedbackMsg.textContent = `Fatal Error deleting event "${eventTitle}": ${error.message}`;
+        manageFeedbackMsg.className = "text-center mt-6 text-red-400 font-medium p-3 rounded bg-[#5c2424] border border-red-700";
+    }
+}
+
+
+/**
+ * Initiates the delete confirmation modal.
+ */
+function deleteEvent(eventKey, imageUrl) {
+    const eventElement = document.getElementById(`event-key-${eventKey}`);
+    const eventTitleElement = eventElement ? eventElement.querySelector('.event-title-manage') : null;
+    const eventTitle = eventTitleElement ? eventTitleElement.textContent : `Event ID: ${eventKey}`;
+
+    const confirmationTitle = "Confirm Event Deletion";
+    const confirmationMessage = `You are about to permanently delete the event: <strong>"${eventTitle}"</strong>.<br><br>Are you sure you want to proceed? This cannot be undone.`;
+
+    // Use the custom modal confirmation
+    showModalConfirm(confirmationTitle, confirmationMessage, () => {
+        performDelete(eventKey, imageUrl, eventTitle, eventElement);
+    });
+}
+
+
+// ====================================================================
+// EDIT FUNCTION (Load Data and Switch View)
+// ====================================================================
+
+async function handleEdit(eventKey) {
+    const eventRef = dbRef(db, `events/${eventKey}`);
+
+    showUploadView(); // Switch to the form view (resets form via exitEditMode)
+
+    submissionFeedbackMsg.textContent = "Loading event details...";
+    submissionFeedbackMsg.className = "text-center mt-6 text-blue-400 font-medium p-3 rounded bg-[#1e3a8a] border border-blue-700";
+    submissionFeedbackMsg.classList.remove('hidden');
+
+    try {
+        const snapshot = await get(eventRef);
+        if (!snapshot.exists()) {
+            submissionFeedbackMsg.textContent = "Error: Event data not found for editing.";
+            submissionFeedbackMsg.className = "text-center mt-6 text-red-400 font-medium";
+            return;
+        }
+
+        const eventData = snapshot.val();
+
+        // 1. Set Edit Mode Variables
+        isEditMode = true;
+        currentEditKey = eventKey;
+        currentImageUrl = eventData.imageUrl || null;
+
+        // 2. Populate Form
+        uploadViewTitle.textContent = `Editing: ${eventData.title}`;
+        eventTitleInput.value = eventData.title;
+        eventForm.eventDescription.value = eventData.description;
+        eventForm.eventDate.value = eventData.date;
+        eventForm.eventTime.value = eventData.time;
+
+        // 3. Populate Map Coordinates
+        const lat = parseFloat(eventData.latitude);
+        const lng = parseFloat(eventData.longitude);
+        eventLatitudeInput.value = lat.toFixed(6);
+        eventLongitudeInput.value = lng.toFixed(6);
+
+        // 4. Move Map and Marker
+        map.setView([lat, lng], 14);
+        marker.setLatLng([lat, lng]);
+
+        // 5. Update Submit Button and add Cancel Button
+        submitButton.textContent = 'Update Event Details';
+        submitButton.classList.remove('submit-button'); // Remove default class
+        submitButton.classList.add('bg-yellow-600', 'hover:bg-yellow-700', 'text-white', 'font-bold', 'py-3', 'px-6', 'rounded-lg');
+
+        const formDiv = eventForm.querySelector('div:last-of-type').parentElement;
+        formDiv.appendChild(cancelEditBtn);
+
+        // 6. Provide Feedback
+        submissionFeedbackMsg.textContent = `Editing: "${eventData.title}". Upload a new image to replace the old one, or leave blank to keep.`;
+        submissionFeedbackMsg.className = "text-center mt-6 text-yellow-400 font-medium p-3 rounded bg-[#3a3424] border border-yellow-700";
+
+    } catch (error) {
+        console.error("Error loading event for edit:", error);
+        submissionFeedbackMsg.textContent = `Failed to load event for edit: ${error.message}`;
+        submissionFeedbackMsg.className = "text-center mt-6 text-red-400 font-medium";
+        exitEditMode();
+    }
+}
+
+
+// ====================================================================
+// UPDATE FUNCTION
+// ====================================================================
+
+async function updateEvent(e) {
+    e.preventDefault(); // FIX: This prevents the page from refreshing and interrupting the update process
+
+    submitButton.disabled = true;
+    submissionFeedbackMsg.classList.remove('hidden');
+    submissionFeedbackMsg.textContent = "Updating event...";
+    submissionFeedbackMsg.className = "text-center mt-6 text-blue-400";
+
+    const file = eventPhotoInput.files[0];
+    let newImageUrl = currentImageUrl;
+
+    try {
+        // 1. Handle New Image Upload and Old Image Deletion
+        if (file) {
+            submissionFeedbackMsg.textContent = "Uploading new image and deleting old one...";
+
+            if (currentImageUrl) {
+                const oldFilePath = getFilePathFromUrl(currentImageUrl);
+                if (oldFilePath) {
+                    await deleteObject(storageRef(storage, oldFilePath)).catch(err => {
+                        console.warn("Could not delete old image (may not exist or permission issue):", err.code);
+                    });
+                }
+            }
+
+            const uniqueFileName = `${Date.now()}_${file.name}`;
+            const imageRef = storageRef(storage, `event_images/${uniqueFileName}`);
+            const uploadResult = await uploadBytes(imageRef, file);
+            newImageUrl = await getDownloadURL(uploadResult.ref);
+            console.log("New image uploaded:", newImageUrl);
+        }
+
+        // 2. Prepare Updated Data
+        const updatedData = {
+            title: eventTitleInput.value,
+            description: eventForm.eventDescription.value,
+            date: eventForm.eventDate.value,
+            time: eventForm.eventTime.value,
+            latitude: eventLatitudeInput.value,
+            longitude: eventLongitudeInput.value,
+            imageUrl: newImageUrl,
+            poster: posterUsername,
+        };
+
+        // 3. Update Realtime Database
+        const eventRef = dbRef(db, `events/${currentEditKey}`);
+        await update(eventRef, updatedData);
+
+        // 4. Success Feedback and Exit
+        submissionFeedbackMsg.textContent = `Event "${updatedData.title}" updated successfully!`;
+        submissionFeedbackMsg.className = "text-center mt-6 text-emerald-400 font-medium";
+
+        exitEditMode();
+        showManageView();
+
+    } catch (error) {
+        console.error("Error updating event: ", error);
+        submissionFeedbackMsg.textContent = `Error: Could not update event. ${error.message}`;
+        submissionFeedbackMsg.className = "text-center mt-6 text-red-400 font-medium";
+        submitButton.disabled = false;
+    }
+}
+
+// 7. Event Delegation for Manage View Buttons
+eventList.addEventListener('click', (e) => {
+    const button = e.target.closest('button');
+    if (!button) return;
+
+    const action = button.dataset.action;
+    const eventKey = button.dataset.eventKey;
+    const imageUrl = button.dataset.imageUrl || '';
+
+    if (!eventKey) {
+        console.error("Button is missing data-event-key attribute.");
+        return;
+    }
+
+    if (action === 'delete') {
+        deleteEvent(eventKey, imageUrl);
+    } else if (action === 'edit') {
+        handleEdit(eventKey);
+    }
+});
+
+
+// 8. Main Form Submission Handler
+eventForm.addEventListener("submit", (e) => {
+    // This handler checks the mode and calls the correct function
+    if (isEditMode) {
+        updateEvent(e);
+    } else {
+        uploadNewEvent(e);
+    }
+});
+
+
+// ====================================================================
+// ORIGINAL UPLOAD FUNCTION
+// ====================================================================
+async function uploadNewEvent(e) {
+    e.preventDefault();
+    if (!eventLatitudeInput.value || !eventLongitudeInput.value) {
+        submissionFeedbackMsg.classList.remove('hidden');
+        submissionFeedbackMsg.textContent = "Error: Please set the Latitude and Longitude using the map before publishing.";
+        submissionFeedbackMsg.className = "text-center mt-6 text-red-400 font-medium";
+        return;
+    }
+
+    submitButton.disabled = true;
+    submissionFeedbackMsg.classList.remove('hidden');
+    submissionFeedbackMsg.textContent = "Publishing event...";
+    submissionFeedbackMsg.className = "text-center mt-6 text-blue-400";
+
+    const file = eventPhotoInput.files[0];
+    try {
+        let imageUrl = null;
+        if (file) {
+            submissionFeedbackMsg.textContent = "Uploading image...";
+            const uniqueFileName = `${Date.now()}_${file.name}`;
+            const imageRef = storageRef(storage, `event_images/${uniqueFileName}`);
+            const uploadResult = await uploadBytes(imageRef, file);
+            imageUrl = await getDownloadURL(uploadResult.ref);
+        }
+
+        const eventData = {
+            title: eventTitleInput.value,
+            description: eventForm.eventDescription.value,
+            date: eventForm.eventDate.value,
+            time: eventForm.eventTime.value,
+            latitude: eventLatitudeInput.value,
+            longitude: eventLongitudeInput.value,
+            imageUrl: imageUrl,
+            poster: posterUsername,
+            timestamp: serverTimestamp()
+        };
+        const eventsRef = dbRef(db, 'events');
+        await push(eventsRef, eventData);
+
+        submissionFeedbackMsg.textContent = `Event "${eventData.title}" scheduled successfully!`;
+        submissionFeedbackMsg.className = "text-center mt-6 text-emerald-400 font-medium";
+
+        eventForm.reset();
+        fileNameSpan.textContent = "Upload Image (Optional)";
+        eventAddressInput.value = '';
+        submitButton.disabled = false;
+    } catch (error) {
+        console.error("Error adding event: ", error);
+        submissionFeedbackMsg.textContent = `Error: Could not publish event. ${error.message}`;
+        submissionFeedbackMsg.className = "text-center mt-6 text-red-400 font-medium";
+        submitButton.disabled = false;
+    }
+}
+
+
+// ====================================================================
+// LEAFLET MAP INTEGRATION
+// ====================================================================
+let map = L.map('event-map').setView([7.0722, 125.6131], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors'}).addTo(map);
+let marker = L.marker([7.0722, 125.6131], { draggable: true }).addTo(map);
+
+function updateCoordinates(lat, lng) {
+    eventLatitudeInput.value = lat.toFixed(6);
+    eventLongitudeInput.value = lng.toFixed(6);
+}
+updateCoordinates(7.0722, 125.6131);
+
+marker.on('dragend', (e) => {
+    const latlng = marker.getLatLng();
+    updateCoordinates(latlng.lat, latlng.lng);
+    submissionFeedbackMsg.classList.add('hidden');
+});
+
+async function searchAddress(address) {
+    const encodedAddress = encodeURIComponent(address);
+    const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodedAddress}&format=json&limit=1`;
+    try {
+        const response = await fetch(nominatimUrl);
+        const data = await response.json();
+        if (data && data.length > 0) {
+            const lat = parseFloat(data[0].lat);
+            const lng = parseFloat(data[0].lon);
+            map.setView([lat, lng], 14);
+            marker.setLatLng([lat, lng]);
+            updateCoordinates(lat, lng);
+            submissionFeedbackMsg.textContent = `Location found: ${data[0].display_name.split(',')[0]}. Drag pin to adjust.`;
+            submissionFeedbackMsg.className = "text-center mt-6 text-emerald-400 font-medium";
+            submissionFeedbackMsg.classList.remove('hidden');
+        } else {
+            submissionFeedbackMsg.textContent = "Location not found. Please try a different address or drag the pin manually.";
+            submissionFeedbackMsg.className = "text-center mt-6 text-yellow-400 font-medium";
+            submissionFeedbackMsg.classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error("Geocoding error:", error);
+        submissionFeedbackMsg.textContent = "Error during search. Check your network or try a simpler address.";
+        submissionFeedbackMsg.className = "text-center mt-6 text-red-400 font-medium";
+        submissionFeedbackMsg.classList.remove('hidden');
+    }
+}
+
+mapSearchBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const address = eventAddressInput.value.trim();
+    if (address) {
+        submissionFeedbackMsg.textContent = "Searching for location...";
+        submissionFeedbackMsg.className = "text-center mt-6 text-blue-400";
+        submissionFeedbackMsg.classList.remove('hidden');
+        searchAddress(address);
+    } else {
+        submissionFeedbackMsg.textContent = "Please enter an event address or location name first.";
+        submissionFeedbackMsg.className = "text-center mt-6 text-red-400 font-medium";
+        submissionFeedbackMsg.classList.remove('hidden');
+    }
+});
+
+eventPhotoInput.addEventListener('change', () => {
+    if (eventPhotoInput.files.length > 0) {
+        fileNameSpan.textContent = eventPhotoInput.files[0].name;
+    } else {
+        fileNameSpan.textContent = "Upload Image (Optional)";
+    }
+});
+</script>
+</body>
+</html>

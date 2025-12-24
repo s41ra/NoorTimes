@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Profile - Editable with Toggle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* ====================================================================
+        1. Base & Utilities (DARK THEME VARIABLES)
+        ==================================================================== */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        /* --- NEW THEME COLORS --- */
+        :root {
+            --color-dark-bg: #172B26; /* Dark background */
+            --color-card-bg: #213A33; /* Main profile card background */
+            --color-primary-green: #10b981; /* Tailwind emerald-500 equivalent */
+            --color-dark-primary-green: #059669; /* Tailwind emerald-600 equivalent */
+            --color-text-light: #e5e7eb; /* Light text for dark backgrounds */
+            --color-text-medium: #a1a1aa; /* Muted text */
+            --color-border-dark: #374151; /* Darker border for contrast */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-dark-bg);
+            color: var(--color-text-light);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ====================================================================
+        2. Component Styles (EDITABLE PROFILE ADJUSTMENTS)
+        ==================================================================== */
+        .profile-card {
+            background: var(--color-card-bg);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 0;
+        }
+
+        .profile-header {
+            padding: 30px 20px 20px;
+            text-align: center;
+            position: relative; /* Needed for absolute positioning of the edit button */
+        }
+
+        .profile-pic {
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            background-color: var(--color-dark-primary-green);
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #fff;
+            border: 4px solid var(--color-primary-green);
+        }
+
+        .edit-button {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: transparent;
+            color: var(--color-primary-green);
+            border: 1px solid var(--color-primary-green);
+            padding: 6px 12px;
+            border-radius: 9999px; /* Pill shape */
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .edit-button:hover {
+            background-color: rgba(16, 185, 129, 0.1); /* Subtle green hover */
+        }
+
+        /* Details Section */
+        .profile-details-section {
+            padding: 24px;
+            border-top: 1px solid var(--color-border-dark);
+        }
+
+        .profile-detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #2c443e;
+            align-items: center;
+        }
+
+        .profile-detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .profile-detail-label {
+            color: var(--color-text-medium);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 500;
+        }
+        .profile-detail-value {
+            color: var(--color-text-light);
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-align: right;
+        }
+        .profile-detail-value.role {
+            color: var(--color-primary-green);
+            font-weight: 800;
+            font-size: 1rem;
+        }
+
+        /* Styling for editable input fields */
+        .profile-input {
+            background-color: transparent;
+            border: 1px solid #374151;
+            border-radius: 4px;
+            padding: 4px 8px;
+            color: var(--color-text-light);
+            font-weight: 600;
+            text-align: right;
+            max-width: 60%;
+            outline: none;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+
+        .profile-input:focus {
+            border-color: var(--color-primary-green);
+        }
+
+        /* Style for disabled inputs */
+        .profile-input:disabled {
+            background-color: transparent;
+            border-color: transparent; /* No border when disabled */
+            color: var(--color-text-light); /* Keep text color */
+            cursor: default;
+        }
+    </style>
+</head>
+<body class="flex items-start justify-center min-h-screen p-6">
+
+<main class="w-full mx-auto max-w-lg">
+
+    <div class="profile-card">
+
+        <div id="profile-header" class="profile-header">
+            <button id="edit-button" class="edit-button" onclick="toggleEditMode()">
+                Edit Profile
+            </button>
+
+            <div id="profile-pic" class="profile-pic">A</div>
+
+            <h1 id="user-name" class="text-3xl font-bold text-white mb-1">...</h1>
+            <p id="user-role-display" class="profile-detail-value role capitalize mb-4 text-center">Loading Role...</p>
+            <p id="welcome-subtitle" class="text-center text-gray-400 text-sm">Your Admin Details</p>
+        </div>
+
+        <div id="message" class="text-center px-6 py-2"></div>
+
+        <div id="admin-accounts-container" class="profile-details-section">
+            <div id="initial-message" class="text-center text-gray-400">Awaiting username from Android...</div>
+        </div>
+
+    </div>
+
+</main>
+
+<script>
+    // Global variable to store the username passed from the Android WebView
+    let currentAdminUsername = null;
+    let currentDocRef = null;
+    let isEditMode = false; // Track the state
+
+    // Function to switch between read-only and edit modes
+    function toggleEditMode() {
+        isEditMode = !isEditMode;
+
+        const firstNameInput = document.getElementById('input-first-name');
+        const lastNameInput = document.getElementById('input-last-name');
+        const saveButton = document.getElementById('save-button');
+        const editButton = document.getElementById('edit-button');
+
+        if (firstNameInput) firstNameInput.disabled = !isEditMode;
+        if (lastNameInput) lastNameInput.disabled = !isEditMode;
+
+        if (saveButton) saveButton.style.display = isEditMode ? 'block' : 'none';
+        if (editButton) editButton.style.display = isEditMode ? 'none' : 'block';
+
+        const messageDiv = document.getElementById("message");
+        if (isEditMode) {
+            messageDiv.textContent = "You are now in edit mode. Click Save when finished.";
+            messageDiv.classList.remove("text-red-400", "text-yellow-400", "text-emerald-400");
+            messageDiv.classList.add("text-yellow-400");
+        } else {
+             // Clear the message when returning to read-only state, unless there was a save message
+             if (!messageDiv.textContent.includes("successfully") && !messageDiv.textContent.includes("error")) {
+                messageDiv.textContent = "";
+             }
+             messageDiv.classList.remove("text-yellow-400");
+        }
+    }
+
+
+    // 1. New function to be called from the Android WebView
+    function setAdminUsername(username) {
+        currentAdminUsername = username; // Store the username
+        const nameElement = document.getElementById('user-name');
+        const roleDisplayElement = document.getElementById('user-role-display');
+        const initialMessage = document.getElementById("initial-message");
+        const accountsContainer = document.getElementById("admin-accounts-container");
+        const messageDiv = document.getElementById("message");
+        const profilePic = document.getElementById("profile-pic");
+        const editButton = document.getElementById("edit-button");
+
+        const initial = (username && username.length > 0) ? username.charAt(0).toUpperCase() : 'A';
+
+        if (nameElement) {
+            nameElement.textContent = username || 'Admin';
+        }
+        if (roleDisplayElement) {
+            roleDisplayElement.textContent = "Loading Role...";
+        }
+        if (initialMessage) {
+            initialMessage.textContent = `Loading account for ${username}...`;
+        }
+        if (profilePic) {
+            profilePic.textContent = initial; // Set the initial letter
+        }
+        // Initially hide the edit button until data is loaded
+        if (editButton) editButton.style.display = 'none';
+
+        // Clear previous messages
+        messageDiv.textContent = "";
+        messageDiv.classList.remove("text-red-400", "text-emerald-400", "text-yellow-400");
+
+
+        // Call the fetch function now that we have the username
+        if (currentAdminUsername && window.fetchAdminAccounts) {
+            window.fetchAdminAccounts();
+        } else if (currentAdminUsername) {
+            // A small delay in case the module script hasn't fully loaded yet (common in WebViews)
+            setTimeout(() => {
+                if(window.fetchAdminAccounts) {
+                    window.fetchAdminAccounts();
+                }
+            }, 500);
+        } else {
+             messageDiv.textContent = "⚠️ No username provided. Cannot fetch account details.";
+             messageDiv.classList.add("text-yellow-400");
+             accountsContainer.innerHTML = `<div class="profile-detail-item"><p class="profile-detail-label text-red-400">Error</p><p class="profile-detail-value text-red-400">Username Required</p></div>`;
+        }
+    }
+
+    // Function to handle saving the changes
+    window.saveAccountDetails = async () => {
+        if (!currentDocRef) {
+            document.getElementById("message").textContent = "❌ Error: Cannot save, account reference is missing.";
+            document.getElementById("message").classList.add("text-red-400");
+            return;
+        }
+
+        const firstName = document.getElementById('input-first-name').value.trim();
+        const lastName = document.getElementById('input-last-name').value.trim();
+
+        const dataToUpdate = {
+            firstName: firstName,
+            lastName: lastName
+        };
+
+        try {
+            // Use the globally available updateDoc function (imported in the module script)
+            await window.firestoreUpdateDoc(currentDocRef, dataToUpdate);
+
+            // Success Feedback
+            document.getElementById("message").textContent = "Profile updated successfully!";
+            document.getElementById("message").classList.remove("text-red-400", "text-yellow-400");
+            document.getElementById("message").classList.add("text-emerald-400");
+
+            // Update the main header display name immediately
+            const nameElement = document.getElementById('user-name');
+            const newFullName = [firstName, '', lastName].filter(n => n && n.trim() !== '').join(' ');
+            nameElement.textContent = newFullName || currentAdminUsername;
+
+            // Update profile initial if full name was provided
+            const profilePic = document.getElementById("profile-pic");
+            const newInitial = (newFullName && newFullName.length > 0) ? newFullName.charAt(0).toUpperCase() : currentAdminUsername.charAt(0).toUpperCase();
+            profilePic.textContent = newInitial;
+
+            // Exit edit mode on successful save
+            toggleEditMode();
+
+
+        } catch (e) {
+            console.error("Error updating document: ", e);
+            document.getElementById("message").textContent = "❌ Error saving changes. See console for details.";
+            document.getElementById("message").classList.remove("text-emerald-400", "text-yellow-400");
+            document.getElementById("message").classList.add("text-red-400");
+        }
+    }
+
+</script>
+
+<script type="module">
+        // Import necessary functions for reading and UPDATING data
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+        // 🛑 KEY CHANGE: Import doc, getDoc, and updateDoc
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+        // Make updateDoc globally accessible so it can be called from the non-module script
+        window.firestoreUpdateDoc = updateDoc;
+
+
+        // Firebase configuration remains the same
+        const firebaseConfig = {
+            apiKey: "AIzaSyByJOqTUojiL1wN7_i_cHMAukuJWzIZVck",
+            authDomain: "clothsuggest.firebaseapp.com",
+            projectId: "clothsuggest",
+            storageBucket: "clothsuggest.activity.appspot.com",
+            messagingSenderId: "758790774735",
+            appId: "1:758790774735:web:5f5ea17048273416cd7cba",
+            measurementId: "G-4H8WZL0S4F"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // References to the display divs
+        const accountsContainer = document.getElementById("admin-accounts-container");
+        const messageDiv = document.getElementById("message");
+        const nameElement = document.getElementById('user-name');
+        const roleDisplayElement = document.getElementById('user-role-display');
+        const profilePic = document.getElementById("profile-pic");
+        const editButton = document.getElementById("edit-button");
+
+
+        // Function to format the date
+        const formatDate = (timestamp) => {
+            if (timestamp && timestamp.toDate) {
+                return timestamp.toDate().toLocaleDateString() + ' ' + timestamp.toDate().toLocaleTimeString();
+            }
+            return 'N/A';
+        }
+
+        // Make the fetch function globally accessible so `setAdminUsername` can call it
+        window.fetchAdminAccounts = async () => {
+            accountsContainer.innerHTML = ''; // Clear the initial message/content
+            messageDiv.textContent = "";
+            messageDiv.classList.remove("text-red-400", "text-emerald-400", "text-yellow-400");
+            nameElement.textContent = "Loading...";
+            roleDisplayElement.textContent = "Loading...";
+            profilePic.textContent = "..."
+
+
+            if (!currentAdminUsername) {
+                return;
+            }
+
+
+            try {
+                // Fetch a single document by its ID (which is the username)
+                const docRef = doc(db, "islamicadmin", currentAdminUsername);
+                currentDocRef = docRef; // Store the reference globally
+                const docSnap = await getDoc(docRef);
+
+                if (!docSnap.exists()) {
+                    messageDiv.textContent = `⚠️ No admin account found for "${currentAdminUsername}".`;
+                    messageDiv.classList.add("text-yellow-400");
+                    nameElement.textContent = currentAdminUsername;
+                    roleDisplayElement.textContent = "User";
+                    accountsContainer.innerHTML = `<div class="profile-detail-item"><p class="profile-detail-label">Status</p><p class="profile-detail-value text-yellow-400">Not Admin</p></div>`;
+                    profilePic.textContent = currentAdminUsername.charAt(0).toUpperCase();
+                    if (editButton) editButton.style.display = 'none'; // Ensure edit button is hidden if account doesn't exist
+                    return;
+                }
+
+                // Show the edit button now that data is loaded
+                if (editButton) editButton.style.display = 'block';
+
+
+                // Process the single document
+                const data = docSnap.data();
+                const docId = docSnap.id; // This is the username
+                const role = data.role || 'user'; // Default role
+
+                const fullName = [data.firstName, data.middleName, data.lastName]
+                    .filter(n => n && n.trim() !== '')
+                    .join(' ');
+
+                const displayName = fullName || currentAdminUsername;
+                const profileInitial = (displayName && displayName.length > 0) ? displayName.charAt(0).toUpperCase() : 'A';
+
+                // Update the main header area
+                nameElement.textContent = displayName;
+                roleDisplayElement.textContent = role;
+                profilePic.textContent = profileInitial;
+
+                // Construct the details list HTML with input fields.
+                // NOTE: Inputs start with 'disabled' and the Save button is initially hidden.
+                const detailsHtml = `
+                    <div class="profile-detail-item">
+                        <p class="profile-detail-label">Account Role</p>
+                        <p class="profile-detail-value role capitalize">${role}</p>
+                    </div>
+                    <div class="profile-detail-item">
+                        <p class="profile-detail-label">Username</p>
+                        <p class="profile-detail-value break-all" id="display-username">${docId}</p>
+                    </div>
+                    <div class="profile-detail-item">
+                        <label class="profile-detail-label" for="input-first-name">First Name</label>
+                        <input type="text" id="input-first-name" class="profile-input" value="${data.firstName || ''}" placeholder="Enter first name" disabled>
+                    </div>
+                    <div class="profile-detail-item">
+                        <label class="profile-detail-label" for="input-last-name">Last Name</label>
+                        <input type="text" id="input-last-name" class="profile-input" value="${data.lastName || ''}" placeholder="Enter last name" disabled>
+                    </div>
+                    <div class="profile-detail-item">
+                        <p class="profile-detail-label">Member Since</p>
+                        <p class="profile-detail-value text-gray-400">${formatDate(data.createdAt)}</p>
+                    </div>
+
+                    <button id="save-button" onclick="saveAccountDetails()" class="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded transition duration-200" style="display: none;">
+                        Save Changes
+                    </button>
+                `;
+                accountsContainer.insertAdjacentHTML('beforeend', detailsHtml);
+
+                messageDiv.textContent = ``; // Keep clean until user interacts
+                messageDiv.classList.remove("text-red-400", "text-yellow-400", "text-emerald-400");
+                console.log(`Successfully loaded document for '${currentAdminUsername}'.`);
+
+            } catch (e) {
+                // Error Feedback
+                console.error("Error fetching document: ", e);
+                messageDiv.textContent = "❌ An error occurred while fetching your account.";
+                messageDiv.classList.add("text-red-400");
+                nameElement.textContent = currentAdminUsername;
+                roleDisplayElement.textContent = "Error";
+                accountsContainer.innerHTML = `<div class="profile-detail-item"><p class="profile-detail-label text-red-400">Error</p><p class="profile-detail-value text-red-400">Data Fetch Failed</p></div>`;
+                if (editButton) editButton.style.display = 'none';
+            }
+        };
+
+    </script>
+
+</body>
+</html>

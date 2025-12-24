@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Upcoming Events Calendar 🗓️ | Islamic App</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* Base & Utilities (UPDATED COLORS) */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        /* New Dark Forest Green Background */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #172B26;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            padding-top: 0px;
+        }
+
+        /* New Deep Emerald Container Background */
+        .app-container {
+            max-width: 480px;
+            margin-left: auto;
+            margin-right: auto;
+            min-height: 100vh;
+            padding: 0;
+            background-color: #213A33;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.6);
+        }
+        
+        /* Calendar Header/Navigation section (Week/Month, Arrows) */
+        .calendar-header-top {
+            background-color: #2a463e; /* Match new main box */
+            padding: 0; /* Handled by parent box */
+            border-bottom: none;
+        }
+
+        /* NEW STYLE FOR CALENDAR MAIN CONTAINER */
+        .calendar-main-box {
+            background-color: #2a463e; /* Slightly lighter dark background for calendar */
+            border-radius: 12px;
+            margin: 1rem; /* Padding from app-container edges */
+            padding: 1rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        /* ====================================================================
+        2. Calendar Specific Styles (UPDATED COLORS)
+        ==================================================================== */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            border: none;
+            padding: 0 0 0.5rem; /* Adjusted padding */
+        }
+        .day-header {
+            background-color: #2a463e; /* Match new main box */
+            font-weight: 600;
+            color: #b0c4b6; /* Lighter gray-green text for headers */
+            text-align: center;
+            padding: 8px 0;
+            font-size: 0.9rem;
+            border-bottom: none;
+            text-transform: uppercase;
+        }
+        .date-cell {
+            background-color: #2a463e; /* Match new main box */
+            height: auto;
+            min-height: 48px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 4px 0;
+            cursor: default;
+            transition: background-color 0.15s;
+            position: relative;
+            border: none;
+        }
+        
+        /* Styling for the Date Number itself (PURE WHITE) */
+        .date-number {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ffffff; /* PURE WHITE */
+            line-height: 1;
+            margin-bottom: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            transition: all 0.15s;
+        }
+        
+        /* Event Marker (Small Green Dot) - BRIGHTER GREEN */
+        .event-dot {
+            width: 6px;
+            height: 6px;
+            background-color: #48e589;
+            border-radius: 50%;
+            margin-top: 2px;
+        }
+
+        .date-cell.event-day {
+            cursor: pointer;
+        }
+
+        /* Today's Date - Pale Green Filled Circle style */
+        .date-cell.today .date-number {
+            font-weight: 800;
+            color: #172B26; /* Dark text color for contrast on light background */
+            background-color: #D6FFEB; /* White/Pale Green filled background */
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            border-radius: 50%;
+        }
+        
+        /* Empty Day styles (Previous/Next Month) */
+        .empty-day .date-number {
+            color: #8b9d93; /* Darker gray-green for dates not in the current month */
+            font-weight: 500;
+        }
+        .empty-day {
+            background-color: #2a463e; /* Match new main box */
+            color: #6a8074;
+        }
+
+        /* ====================================================================
+        3. Detail Card Styles (UPDATED COLORS & IMAGE STYLE)
+        ==================================================================== */
+        .event-card-detail {
+            background: #2a463e; /* Slightly lighter dark background for card */
+            border: 1px solid #3c6157;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            box-shadow: 0 6px 10px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Image section update */
+        .event-image {
+            width: 100%;
+            max-height: 400px;
+            height: auto;
+            object-fit: contain; /* Ensures the whole image is visible without cropping */
+            display: block;
+        }
+        
+        /* Enforced dark theme text colors for consistency */
+        .field-label {
+            color: #b0c4b6; /* Light gray-green label */
+        }
+        .text-gray-900 {
+            color: #ffffff !important; /* PURE WHITE for main titles */
+        }
+        .text-gray-800 {
+            color: #c4d7c8 !important;
+        }
+        .text-gray-700 {
+            color: #b0c4b6 !important;
+        }
+        .text-gray-500 {
+            color: #8b9d93 !important;
+        }
+        
+        .event-map-container {
+            height: 200px;
+        }
+        .details-back-button {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            background-color: #2a463e; /* Darker green background */
+            color: #ffffff; /* PURE WHITE */
+            transition: background-color 0.15s;
+        }
+        .details-back-button:hover {
+            background-color: #3c6157;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center">
+
+    <main class="w-full app-container">
+
+        <div id="calendar-view" class="">
+            <div class="calendar-main-box">
+                
+                <div class="calendar-header-top mb-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex p-1 bg-[#213A33] rounded-xl text-sm font-semibold">
+                            <button class="px-5 py-2 bg-[#d6ffeb] text-[#172B26] rounded-lg shadow-md font-extrabold">Week</button>
+                            <button class="px-5 py-2 text-white/70 hover:text-white transition">Month</button>
+                        </div>
+                        <div class="flex space-x-2 text-[#ffffff]">
+                            <button id="prev-month-btn" class="p-1 rounded-full text-[#ffffff]/80 hover:bg-[#213A33] transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                            </button>
+                            <button id="next-month-btn" class="p-1 rounded-full text-[#ffffff]/80 hover:bg-[#213A33] transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="calendar-grid mb-4">
+                    <div class="day-header">Sun</div>
+                    <div class="day-header">Mon</div>
+                    <div class="day-header">Tue</div>
+                    <div class="day-header">Wed</div>
+                    <div class="day-header">Thu</div>
+                    <div class="day-header">Fri</div>
+                    <div class="day-header">Sat</div>
+                    <div id="calendar-dates-grid" style="display: contents;">
+                        </div>
+                </div>
+                
+                <div class="flex items-center bg-[#213A33] text-[#ffffff] p-2 rounded-xl w-fit mx-auto mt-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#48e589] mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span id="current-month-year" class="text-base font-semibold"></span>
+                </div>
+            </div>
+            <p id="loading-status-cal" class="text-center text-gray-500 font-medium mt-12">Loading events...</p>
+            
+        </div>
+
+        <div id="event-details-view" class="hidden px-4 pt-4">
+            <button id="back-to-calendar-btn" class="details-back-button mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                Back to Calendar
+            </button>
+            <h3 id="selected-date-title" class="text-2xl font-extrabold text-gray-900 mb-4 border-b border-[#3c6157] pb-2">Events on [Date]</h3>
+            <div id="events-for-day-list" class="space-y-4">
+                </div>
+            <p id="no-events-message" class="text-center text-gray-500 font-medium mt-12 hidden">No events scheduled for this day.</p>
+        </div>
+
+    </main>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
+        // --- Configuration & Initialization ---
+        
+        // Firebase configuration (reused from the admin page)
+        const firebaseConfig = {
+            apiKey: "AIzaSyByJOqTUojiL1wN7_i_cHMAukuJWzIZVck",
+            authDomain: "clothsuggest.firebaseapp.com",
+            databaseURL: "https://clothsuggest-default-rtdb.firebaseio.com/",
+            projectId: "clothsuggest",
+            storageBucket: "clothsuggest.firebasestorage.app",
+            messagingSenderId: "758790774735",
+            appId: "1:758790774735:web:5f5ea17048273416cd7cba",
+            measurementId: "G-4H8WZL0S4F"
+        };
+
+        // Initialize Firebase app and DB
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // --- DOM Elements ---
+        const calendarView = document.getElementById('calendar-view');
+        const eventDetailsView = document.getElementById('event-details-view');
+        const calendarDatesGrid = document.getElementById('calendar-dates-grid');
+        const currentMonthYearDisplay = document.getElementById('current-month-year');
+        const prevMonthBtn = document.getElementById('prev-month-btn');
+        const nextMonthBtn = document.getElementById('next-month-btn');
+        const eventsForDayList = document.getElementById('events-for-day-list');
+        const selectedDateTitle = document.getElementById('selected-date-title');
+        const loadingStatusCal = document.getElementById('loading-status-cal');
+        const backToCalendarBtn = document.getElementById('back-to-calendar-btn');
+
+        // --- State Variables ---
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+        let allEvents = {}; // Store all fetched events keyed by date (YYYY-MM-DD)
+        const activeMaps = {}; // For Leaflet map instances
+
+        // --- Utility Functions ---
+
+        /** Converts 24h time string (HH:MM) to 12h format (H:MM AM/PM) */
+        function formatTime(time24h) {
+            if (!time24h || typeof time24h !== 'string') return 'TBD';
+            const parts = time24h.split(':');
+            if (parts.length !== 2) return time24h;
+            let hours = parseInt(parts[0], 10);
+            const minutes = parts[1];
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            return hours + ':' + minutes + ' ' + ampm;
+        }
+        
+        /** Formats date into YYYY-MM-DD string */
+        function formatDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        
+        /** Initializes and renders a Leaflet map. (UPDATED TILE LAYER) */
+        function renderMap(mapId, lat, lng) {
+            if (isNaN(lat) || isNaN(lng)) return;
+            
+            // Clean up old instance if it exists
+            if (activeMaps[mapId]) {
+                activeMaps[mapId].remove();
+                delete activeMaps[mapId];
+            }
+
+            setTimeout(() => {
+                const mapElement = document.getElementById(mapId);
+                if (mapElement) {
+                    const map = L.map(mapId, {
+                        zoomControl: false,
+                        scrollWheelZoom: false,
+                        dragging: false
+                    }).setView([lat, lng], 14);
+
+                    // Using a light, standard OpenStreetMap tile layer for clarity
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 19,
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(map);
+
+                    // Custom marker icon for better visibility on a light map
+                    const brightMarkerIcon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: '<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-red-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" /></svg>',
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 32]
+                    });
+
+                    L.marker([lat, lng], {icon: brightMarkerIcon}).addTo(map)
+                        .bindPopup("<b>Event Location</b>")
+                        .openPopup();
+
+                    activeMaps[mapId] = map;
+                    map.invalidateSize();
+                }
+            }, 50);
+        }
+
+        // --- Core Functions: Data & UI Management ---
+        
+        /** Fetches all events from Firebase and populates the allEvents object, grouped by date. */
+        function fetchEvents() {
+            loadingStatusCal.classList.remove('hidden');
+            const eventsRef = ref(db, 'events');
+
+            onValue(eventsRef, (snapshot) => {
+                const data = snapshot.val();
+                allEvents = {};
+                const today = formatDate(new Date());
+
+                if (data) {
+                    // Group events by date, and only include upcoming/today's events
+                    Object.keys(data).forEach(key => {
+                        const event = { id: key, ...data[key] };
+                        if (event.date >= today) {
+                            if (!allEvents[event.date]) {
+                                allEvents[event.date] = [];
+                            }
+                            allEvents[event.date].push(event);
+                        }
+                    });
+                }
+                loadingStatusCal.classList.add('hidden');
+                renderCalendar(currentYear, currentMonth);
+            }, (error) => {
+                console.error("Firebase Read Error:", error);
+                loadingStatusCal.textContent = '❌ Error loading events.';
+            });
+        }
+        
+        /** Renders the calendar grid for the current month/year. */
+        function renderCalendar(year, month) {
+            calendarDatesGrid.innerHTML = '';
+            
+            const date = new Date(year, month);
+            const today = new Date();
+            const todayString = formatDate(today);
+            
+            // Update the month/year label at the bottom
+            const monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            currentMonthYearDisplay.textContent = monthName;
+
+            const firstDayOfMonth = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            // Previous month's trailing days
+            const prevMonthLastDay = new Date(year, month, 0).getDate();
+            for (let i = 0; i < firstDayOfMonth; i++) {
+                const prevDayNum = prevMonthLastDay - firstDayOfMonth + i + 1;
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'date-cell empty-day';
+                emptyCell.innerHTML = `<span class="date-number">${prevDayNum}</span>`;
+                calendarDatesGrid.appendChild(emptyCell);
+            }
+
+            // Current month's days
+            for (let day = 1; day <= daysInMonth; day++) {
+                const currentDate = new Date(year, month, day);
+                const dateString = formatDate(currentDate);
+                const eventsOnDate = allEvents[dateString];
+                const hasEvents = !!eventsOnDate;
+                const isToday = dateString === todayString;
+
+                const cell = document.createElement('div');
+                cell.className = 'date-cell';
+                
+                let innerHtml = `<span class="date-number">${day}</span>`;
+
+                if (hasEvents) {
+                    cell.classList.add('event-day');
+                    // Attach click handler to show event details
+                    cell.onclick = () => showEventsForDay(dateString);
+                    innerHtml += `<div class="event-dot"></div>`;
+                }
+
+                if (isToday) {
+                    cell.classList.add('today');
+                }
+                
+                cell.innerHTML = innerHtml;
+                calendarDatesGrid.appendChild(cell);
+            }
+            
+            // Next month's leading days
+            const totalCells = firstDayOfMonth + daysInMonth;
+            const remainingCells = 42 - totalCells; // Max 6 weeks = 42 cells total
+
+            for (let day = 1; day <= remainingCells && totalCells + day <= 42; day++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'date-cell empty-day';
+                emptyCell.innerHTML = `<span class="date-number">${day}</span>`;
+                calendarDatesGrid.appendChild(emptyCell);
+            }
+        }
+        
+        /** Displays the event details view for a specific date. */
+        function showEventsForDay(dateString) {
+            const events = allEvents[dateString] || [];
+            
+            const dateObj = new Date(dateString + 'T00:00:00');
+            const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            selectedDateTitle.textContent = `Events on ${formattedDate}`;
+
+            eventsForDayList.innerHTML = '';
+            
+            calendarView.classList.add('hidden');
+            eventDetailsView.classList.remove('hidden');
+            
+            // Cleanup existing maps before creating new ones
+            Object.keys(activeMaps).forEach(key => {
+                if (activeMaps[key]) {
+                    activeMaps[key].remove();
+                }
+                delete activeMaps[key];
+            });
+
+            if (events.length === 0) {
+                document.getElementById('no-events-message').classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('no-events-message').classList.add('hidden');
+
+            events.forEach(event => {
+                const mapId = `map-${event.id}`;
+                const formattedTime = formatTime(event.time);
+                const posterDisplay = event.poster ?
+                    `<div class="mt-2"><p class="field-label">Posted by</p><p class="text-sm text-gray-800 font-semibold">${event.poster}</p></div>` : '';
+                
+                // Use the event-image class defined in CSS which removes fixed height and object-cover
+                const imageSection = event.imageUrl ?
+                    `<img src="${event.imageUrl}" alt="Image for ${event.description}" class="event-image w-full">` :
+                    `<div class="event-image h-32 flex items-center justify-center bg-[#2a463e] text-gray-500 font-medium border-b border-[#3c6157]">No image added</div>`;
+
+                let mapSection = '';
+                if (event.latitude && event.longitude) {
+                    // Corrected the Google Maps URL to use the standard link for coordinates
+                    // Removed the erroneous prefix from the original code: https://www.google.com/maps/search/?api=1&query=$
+                    const mapsUrl = `https://maps.google.com/maps?q=${event.latitude},${event.longitude}`;
+                    mapSection = `<div class="mt-4">
+                        <div id="${mapId}" class="event-map-container"></div>
+                        <div class="pt-3">
+                            <p class="field-label">GPS Coordinates</p>
+                            <p class="text-sm text-gray-700">${event.latitude}, ${event.longitude}</p>
+                            <a href="${mapsUrl}" target="_blank" class="inline-flex items-center text-sm text-blue-400 hover:text-blue-200 font-medium mt-2">
+                                Open in Google Maps
+                                <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4m-7-3l2-2m-5-1l4-4 4 4M15 9V4" /></svg>
+                            </a>
+                        </div>
+                    </div>`;
+                } else {
+                    mapSection = `<div class="mt-4 text-center text-sm text-red-400 bg-red-900/20 p-3 rounded-md">No location added.</div>`;
+                }
+
+                const eventCardHtml = `
+                    <div class="event-card-detail">
+                        ${imageSection}
+                        <div class="p-4">
+                            <div class="flex justify-between items-start">
+                                <h4 class="text-xl font-bold text-gray-900 flex-1 min-w-0">${event.description}</h4>
+                                <div class="ml-4 text-right">
+                                    <p class="field-label">Time</p>
+                                    <p class="text-base font-extrabold text-[#48e589] uppercase tracking-wide -mt-1">${formattedTime}</p>
+                                </div>
+                            </div>
+                            <div class="mt-4 text-sm text-gray-700 leading-relaxed">
+                                <p class="field-label">Extended Details</p>
+                                <p>${event.details || 'No extended details provided.'}</p>
+                            </div>
+                            ${posterDisplay}
+                            ${mapSection}
+                        </div>
+                    </div>
+                `;
+                eventsForDayList.insertAdjacentHTML('beforeend', eventCardHtml);
+                
+                if (event.latitude && event.longitude) {
+                    // Delay map rendering slightly to ensure DOM element is ready
+                    setTimeout(() => {
+                        renderMap(mapId, parseFloat(event.latitude), parseFloat(event.longitude));
+                    }, 100);
+                }
+            });
+        }
+        
+        /** Switches back to the main calendar view. */
+        function showCalendarView() {
+            eventDetailsView.classList.add('hidden');
+            calendarView.classList.remove('hidden');
+            
+            // Cleanup map instances when leaving the details view
+            Object.keys(activeMaps).forEach(key => {
+                if (activeMaps[key]) {
+                    activeMaps[key].remove();
+                }
+                delete activeMaps[key];
+            });
+        }
+
+        // --- Event Listeners & Initialization ---
+
+        prevMonthBtn.addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar(currentYear, currentMonth);
+        });
+
+        nextMonthBtn.addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar(currentYear, currentMonth);
+        });
+        
+        backToCalendarBtn.addEventListener('click', showCalendarView);
+
+        // Initial fetch
+        fetchEvents();
+    </script>
+
+</body>

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Analytics | Event App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <style>
+        /* Base Dark Theme Styling */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #172B26; /* Dark Theme Background */
+            color: #f1f5f9;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Card Style for Charts */
+        .analytics-card {
+            background: #213A33;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-6">
+
+<main class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-100 mb-8">Event Attendance and Posting Analytics 📊</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="analytics-card border-l-4 border-emerald-500">
+            <p class="text-sm text-gray-400 font-medium">Total Events Posted</p>
+            <p id="total-events" class="text-2xl font-bold mt-1">...</p>
+        </div>
+        <div class="analytics-card border-l-4 border-emerald-500">
+            <p class="text-sm text-gray-400 font-medium">Total People Joined</p>
+            <p id="total-attendees" class="text-2xl font-bold mt-1">...</p>
+        </div>
+        <div class="analytics-card border-l-4 border-emerald-500">
+            <p class="text-sm text-gray-400 font-medium">Average Attendees / Event</p>
+            <p id="average-attendees" class="text-2xl font-bold mt-1">...</p>
+        </div>
+    </div>
+
+    <div class="space-y-8">
+        <div class="analytics-card">
+            <h2 class="text-xl font-semibold mb-4 text-emerald-400">Top 5 Most Popular Events (Attendees)</h2>
+            <div class="h-80">
+                <canvas id="attendanceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="analytics-card">
+            <h2 class="text-xl font-semibold mb-4 text-emerald-400">Events Posted Over Time (Frequency)</h2>
+            <div class="h-80">
+                <canvas id="frequencyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <p id="loading-status" class="text-center text-gray-400 font-medium mt-12">Loading analytics data from Firebase...</p>
+</main>
+
+<script type="module">
+    // --- 1. Firebase Setup ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
+    // WARNING: Replace with your actual Firebase Configuration object
+    const firebaseConfig = {
+        apiKey: "AIzaSyByJOqTUojiL1wN7_i_cHMAukuJWzIZVck",
+        authDomain: "clothsuggest.firebaseapp.com",
+        databaseURL: "https://clothsuggest-default-rtdb.firebaseio.com/",
+        projectId: "clothsuggest",
+        storageBucket: "clothsuggest.firebasestorage.app",
+        messagingSenderId: "758790774735",
+        appId: "1:758790774735:web:5f5ea17048273416cd7cba",
+        measurementId: "G-4H8WZL0S4F"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const loadingStatus = document.getElementById("loading-status");
+    let attendanceChartInstance = null;
+    let frequencyChartInstance = null;
+
+    /**
+     * Main function to fetch all data, process it, and render the charts.
+     */
+    function loadAnalytics() {
+        const eventsRef = ref(db, 'events');
+        const attendeesRef = ref(db, 'attendees');
+
+        // 🔥 CONFIRMED: Fetching events data from the 'events' node
+        onValue(eventsRef, (eventsSnapshot) => {
+            const eventsData = eventsSnapshot.val() || {};
+            const eventDetails = {};
+
+            // 🔥 CONFIRMED: Nested fetch for attendees data from the 'attendees' node
+            onValue(attendeesRef, (attendeesSnapshot) => {
+                const attendeesData = attendeesSnapshot.val() || {};
+
+                // --- 2. Data Processing ---
+
+                let totalEvents = 0;
+                let eventFrequency = {};
+                let eventAttendance = [];
+                let totalAttendees = 0;
+
+                // Process Events for Titles and Frequency
+                Object.keys(eventsData).forEach(id => {
+                    const event = eventsData[id];
+                    totalEvents++;
+
+                    // a. Event Frequency (by month)
+                    if (event.date) {
+                        const monthYear = event.date.substring(0, 7); // YYYY-MM
+                        eventFrequency[monthYear] = (eventFrequency[monthYear] || 0) + 1;
+                    }
+
+                    eventDetails[id] = { title: event.title || `Event ${id.substring(0, 4)}`, date: event.date };
+                });
+
+                // Process Attendance
+                Object.keys(attendeesData).forEach(eventId => {
+                    const attendeeIds = Object.keys(attendeesData[eventId]);
+                    const count = attendeeIds.length;
+                    totalAttendees += count;
+
+                    if (eventDetails[eventId]) {
+                        eventAttendance.push({
+                            title: eventDetails[eventId].title,
+                            count: count,
+                            date: eventDetails[eventId].date
+                        });
+                    }
+                });
+
+                // --- 3. Rendering Charts and Metrics ---
+
+                // Sort and Filter Attendance (Top 5)
+                eventAttendance.sort((a, b) => b.count - a.count);
+                const top5Attendance = eventAttendance.slice(0, 5);
+
+                // Sort and Process Frequency Data
+                const sortedFrequencyKeys = Object.keys(eventFrequency).sort();
+                const frequencyLabels = sortedFrequencyKeys.map(key => new Date(key).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }));
+                const frequencyCounts = sortedFrequencyKeys.map(key => eventFrequency[key]);
+
+                // Update Key Metrics
+                document.getElementById('total-events').textContent = totalEvents.toLocaleString();
+                document.getElementById('total-attendees').textContent = totalAttendees.toLocaleString();
+                document.getElementById('average-attendees').textContent = totalEvents > 0
+                    ? (totalAttendees / totalEvents).toFixed(1)
+                    : '0';
+
+                // Render Charts
+                renderAttendanceChart(top5Attendance);
+                renderFrequencyChart(frequencyLabels, frequencyCounts);
+
+                loadingStatus.classList.add('hidden');
+
+            }, (error) => {
+                console.error("Error fetching attendees:", error);
+                loadingStatus.textContent = "Error loading attendance data.";
+            });
+
+        }, (error) => {
+            console.error("Error fetching events:", error);
+            loadingStatus.textContent = "Error loading event data.";
+        });
+    }
+
+    /** Renders the Bar Chart for Top 5 Attendance */
+    function renderAttendanceChart(data) {
+        if (attendanceChartInstance) {
+            attendanceChartInstance.destroy();
+        }
+
+        const ctx = document.getElementById('attendanceChart').getContext('2d');
+
+        attendanceChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(e => e.title),
+                datasets: [{
+                    label: 'Number of Attendees',
+                    data: data.map(e => e.count),
+                    backgroundColor: '#10b981', // Emerald-500
+                    borderColor: '#059669',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y', // Horizontal bars
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: '#374151' },
+                        ticks: { color: '#f1f5f9' },
+                        title: { display: true, text: 'Attendees', color: '#f1f5f9' }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: '#f1f5f9' }
+                    }
+                }
+            }
+        });
+    }
+
+    /** Renders the Line Chart for Event Posting Frequency */
+    function renderFrequencyChart(labels, data) {
+        if (frequencyChartInstance) {
+            frequencyChartInstance.destroy();
+        }
+
+        const ctx = document.getElementById('frequencyChart').getContext('2d');
+
+        frequencyChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Events Posted',
+                    data: data,
+                    backgroundColor: 'rgba(52, 211, 163, 0.2)', // Emerald-400 with opacity
+                    borderColor: '#34d399', // Emerald-400
+                    tension: 0.3,
+                    fill: true,
+                    pointBackgroundColor: '#34d399'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: Math.max(...data) + 2,
+                        grid: { color: '#374151' },
+                        ticks: { color: '#f1f5f9', precision: 0 }, // Integer ticks
+                        title: { display: true, text: 'Number of Events', color: '#f1f5f9' }
+                    },
+                    x: {
+                        grid: { color: '#374151' },
+                        ticks: { color: '#f1f5f9' }
+                    }
+                }
+            }
+        });
+    }
+
+    // Initialize the dashboard
+    loadAnalytics();
+</script>
+
+</body>
+</html>

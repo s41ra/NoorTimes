@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Distribution Chart | Islamic App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        /* ====================================================================
+        1. Base & Utilities (DARK THEME - LANDSCAPE/PORTRAIT)
+        ==================================================================== */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #172B26; /* Dark Theme Background */
+            color: #f1f5f9; /* Tailwind slate-100 for default text */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            min-height: 100vh; /* Ensure full viewport height */
+        }
+
+        /* Chart Card Container */
+        .list-card {
+            background: #213A33; /* Card Background */
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            display: flex; /* Added for centering content */
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Chart Status Message */
+        #chart-status {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center p-4">
+
+<main class="w-full max-w-xl mx-auto pt-4 pb-20">
+    
+    <h2 class="text-2xl font-bold text-gray-100 mb-6 text-center">User Distribution Analysis</h2>
+    
+    <section>
+        <div class="list-card p-6 min-h-[350px]">
+            <h3 class="text-lg font-semibold text-gray-200 mb-4">Users by Province</h3>
+            <div class="relative w-full max-w-sm">
+                <canvas id="user-chart"></canvas>
+            </div>
+            <p id="chart-status" class="text-center text-gray-400 font-medium mt-4">Loading user data...</p>
+        </div>
+        <p id="error-status" class="text-center text-red-400 font-medium mt-8 hidden"></p>
+    </section>
+
+</main>
+
+<script type="module">
+    // --- 1. Firebase Setup & Initialization ---
+    // Only need Firestore for user data and snapshots
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyByJOqTUojiL1wN7_i_cHMAukuJWzIZVck",
+        authDomain: "clothsuggest.firebaseapp.com",
+        databaseURL: "https://clothsuggest-default-rtdb.firebaseio.com/",
+        projectId: "clothsuggest",
+        storageBucket: "clothsuggest.firebasestorage.app",
+        messagingSenderId: "758790774735",
+        appId: "1:758790774735:web:5f5ea17048273416cd7cba",
+        measurementId: "G-4H8WZL0S4F"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const dbFirestore = getFirestore(app);
+
+    // --- 2. Global State ---
+    let userChart = null; // Chart.js instance
+    const chartStatusEl = document.getElementById("chart-status");
+    const errorStatusEl = document.getElementById("error-status");
+
+    // Utility for Chart Colors (optimized for dark theme)
+    const chartColors = [
+        '#34d399', // Emerald 400 (Green)
+        '#60a5fa', // Blue 400
+        '#facc15', // Yellow 400
+        '#fb7185', // Rose 400 (Pink)
+        '#a78bfa', // Violet 400 (Purple)
+        '#2dd4bf', // Teal 400
+        '#f97316', // Orange 400
+        '#e0e0e0', // Light Gray for Unset
+    ];
+
+
+    // --- 3. Chart Utility Functions ---
+
+    /**
+     * Aggregates user counts based on the 'province' field.
+     * @param {Array<Object>} users - The array of user objects from Firestore.
+     * @returns {{labels: Array<string>, data: Array<number>}} The labels (provinces) and counts.
+     */
+    const getProvinceDistribution = (users) => {
+        const distribution = {};
+        let unsetCount = 0;
+
+        users.forEach(user => {
+            // Use 'province' field for high-level distribution
+            const province = user.province?.trim();
+            if (province) {
+                // Standardize and capitalize the province name for cleaner labels
+                const key = province.charAt(0).toUpperCase() + province.slice(1).toLowerCase();
+                distribution[key] = (distribution[key] || 0) + 1;
+            } else {
+                unsetCount++;
+            }
+        });
+        
+        if (unsetCount > 0) {
+            distribution['Unset / Unknown'] = unsetCount;
+        }
+
+        // Sort labels alphabetically for consistent chart coloring/display
+        const labels = Object.keys(distribution).sort();
+        const data = labels.map(label => distribution[label]);
+        
+        return { labels, data };
+    };
+
+    /**
+     * Renders or updates the Chart.js Pie Chart.
+     * @param {{labels: Array<string>, data: Array<number>}} distribution - The processed user data.
+     */
+    const renderUserChart = (distribution) => {
+        chartStatusEl.classList.add('hidden');
+        const ctx = document.getElementById('user-chart').getContext('2d');
+
+        // Destroy existing chart instance to prevent memory leaks/overlap
+        if (userChart) {
+            userChart.destroy();
+        }
+        
+        if (distribution.data.length === 0) {
+            chartStatusEl.textContent = 'No users found to display on chart.';
+            chartStatusEl.classList.remove('hidden');
+            return;
+        }
+
+        userChart = new Chart(ctx, {
+            type: 'pie', // Pie chart type
+            data: {
+                labels: distribution.labels,
+                datasets: [{
+                    data: distribution.data,
+                    backgroundColor: chartColors.slice(0, distribution.labels.length),
+                    hoverOffset: 8,
+                    borderWidth: 2, // Border for visibility on dark background
+                    borderColor: '#213A33'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'right', 
+                        labels: {
+                            color: '#f1f5f9', // Light text color for dark theme
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        // Custom tooltip to show count and percentage
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                                const currentValue = context.parsed;
+                                const percentage = ((currentValue / total) * 100).toFixed(1);
+
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                return `${label} ${currentValue} users (${percentage}%)`;
+                            }
+                        }
+                    },
+                    title: {
+                        display: false
+                    }
+                }
+            }
+        });
+    };
+
+
+    // --- 4. Main Logic (Data Fetch with Realtime Listener) ---
+
+    function setupUserRealtimeListener() {
+        errorStatusEl.classList.add('hidden');
+        chartStatusEl.textContent = 'Please wait...';
+        chartStatusEl.classList.remove('hidden');
+
+
+        const usersCollectionRef = collection(dbFirestore, "islamusers");
+
+        // Use onSnapshot to listen for real-time changes
+        const unsubscribe = onSnapshot(usersCollectionRef, (snapshot) => {
+            const allUsersData = []; 
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                allUsersData.push({
+                    userId: doc.id,
+                    ...data 
+                });
+            });
+
+            // Aggregate data and render the chart
+            const distribution = getProvinceDistribution(allUsersData);
+            renderUserChart(distribution);
+
+        }, (error) => {
+            console.error("Error getting real-time user list:", error);
+            chartStatusEl.classList.add('hidden');
+            errorStatusEl.textContent = `Error: Failed to stream user list from Firestore.`;
+            errorStatusEl.classList.remove('hidden');
+        });
+    }
+
+    // --- 5. Execution ---
+    setupUserRealtimeListener();
+</script>
+
+</body>
+</html>

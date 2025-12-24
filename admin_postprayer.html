@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard - Upload Prayer Times</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* ====================================================================
+        1. Base & Utilities
+        ==================================================================== */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        /* --- NEW THEME COLORS (Card color applied to entire body for uniformity) --- */
+        :root {
+            --color-dark-bg: #172B26; /* Original body color, now unused but kept */
+            --color-card-bg: #213A33; /* Darker green from the card in the screenshot */
+            --color-primary-green: #10b981; /* Tailwind emerald-500 equivalent */
+            --color-dark-primary-green: #059669; /* Tailwind emerald-600 equivalent */
+            --color-text-light: #e5e7eb; /* Light text for dark backgrounds */
+            --color-text-medium: #a1a1aa; /* Muted text */
+            --color-border-dark: #374151; /* Darker border for contrast */
+        }
+
+        /* FIX: Ensure HTML and BODY backgrounds are the same dark color */
+        html {
+            background-color: var(--color-card-bg); /* Use the card color for the whole screen */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-card-bg); /* THEME CHANGE: Use the darker card color for full coverage */
+            color: var(--color-text-light);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            margin: 0; /* Ensure no default body margin is present */
+        }
+
+        /* ====================================================================
+        2. Component Styles (Updated for Dark Theme Uniformity)
+        ==================================================================== */
+        /* Header and its fixed-height placeholder are now removed from HTML. */
+
+        /* Input field styling for dark theme */
+        .form-input-dark {
+            /* Kept a slightly lighter color for the input fields for contrast */
+            background-color: #2c443e;
+            color: var(--color-text-light);
+            border-color: var(--color-border-dark);
+        }
+        .form-input-dark::placeholder {
+            color: var(--color-text-medium);
+        }
+        .form-input-dark:focus {
+            border-color: var(--color-primary-green);
+            box-shadow: 0 0 0 1px var(--color-primary-green);
+        }
+        .input-time {
+            /* Removed rounded-lg here to match the flat, full-width screenshot design */
+            @apply mt-1 block w-full shadow-sm focus:ring-emerald-500 p-3 border;
+        }
+
+        /* Submit Button Styles (Kept the same) */
+        .submit-button {
+            background-color: var(--color-primary-green);
+            background-image: linear-gradient(to right, var(--color-primary-green), var(--color-dark-primary-green));
+            color: white;
+            padding: 12px 25px;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+        .submit-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+        }
+        .submit-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
+        }
+        .submit-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
+        }
+
+        /* Styles for the new mode buttons */
+        .mode-button {
+            @apply px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-150;
+        }
+        .mode-button-active {
+            @apply bg-emerald-600 text-white shadow-md;
+        }
+        .mode-button-inactive {
+            @apply bg-gray-700 text-gray-300 hover:bg-gray-600;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center min-h-screen">
+
+<h2 id="welcome-message" class="text-center text-xl font-bold text-emerald-400 mb-6 sr-only"></h2>
+<main class="w-full flex-grow flex justify-center">
+    <div class="w-full px-4 pt-8 pb-8 max-w-lg md:max-w-xl">
+
+        <div class="flex justify-center space-x-4 mb-8">
+            <button id="mode-upload-btn" class="mode-button mode-button-active">Upload New Times</button>
+            <button id="mode-edit-btn" class="mode-button mode-button-inactive">Edit Existing Times</button>
+        </div>
+
+        <div id="upload-mode-container">
+            <h3 class="text-xl md:text-2xl font-semibold text-white mb-6">Upload All Prayer Times for a Date</h3>
+
+            <form id="time-upload-form" class="space-y-6">
+
+                <div>
+                    <label for="date-value" class="block text-sm font-medium text-gray-300 mb-2">Date for Prayer Times</label>
+                    <input type="date" id="date-value" name="dateValue" required class="input-time form-input-dark">
+                </div>
+
+                <div class="h-px bg-gray-600"></div>
+
+                <div class="space-y-6 pt-0">
+                    <h4 class="text-lg font-semibold text-white">Enter Individual Prayer Times:</h4>
+
+                    <div>
+                        <label for="fajr-time" class="block text-sm font-medium text-gray-300 mb-2">Fajr (Dawn)</label>
+                        <input type="time" id="fajr-time" name="fajrTime" required class="input-time form-input-dark">
+                    </div>
+
+                    <div>
+                        <label for="dhuhr-time" class="block text-sm font-medium text-gray-300 mb-2">Dhuhr (Noon)</label>
+                        <input type="time" id="dhuhr-time" name="dhuhrTime" required class="input-time form-input-dark">
+                    </div>
+
+                    <div>
+                        <label for="asr-time" class="block text-sm font-medium text-gray-300 mb-2">Asr (Afternoon)</label>
+                        <input type="time" id="asr-time" name="asrTime" required class="input-time form-input-dark">
+                    </div>
+
+                    <div>
+                        <label for="maghrib-time" class="block text-sm font-medium text-gray-300 mb-2">Maghrib (Sunset)</label>
+                        <input type="time" id="maghrib-time" name="maghribTime" required class="input-time form-input-dark">
+                    </div>
+
+                    <div>
+                        <label for="isha-time" class="block text-sm font-medium text-gray-300 mb-2">Isha'a (Night)</label>
+                        <input type="time" id="isha-time" name="ishaTime" required class="input-time form-input-dark">
+                    </div>
+                </div>
+
+                <div class="pt-4">
+                    <button type="submit" class="submit-button w-full text-lg">
+                        Publish All Prayer Times
+                    </button>
+                </div>
+            </form>
+            <p id="submission-feedback" class="text-center mt-6 hidden text-gray-300"></p>
+        </div>
+
+
+        <div id="edit-mode-container" class="hidden">
+            <h3 class="text-xl md:text-2xl font-semibold text-white mb-6">Edit Existing Prayer Times</h3>
+
+            <div class="space-y-6">
+                <div>
+                    <label for="edit-date-value" class="block text-sm font-medium text-gray-300 mb-2">Select Date to Edit</label>
+                    <input type="date" id="edit-date-value" class="input-time form-input-dark">
+                    <button id="fetch-times-btn" class="submit-button w-full mt-4 text-base bg-emerald-700 hover:bg-emerald-800" style="background-image: none;">
+                        Fetch Times for Date
+                    </button>
+                </div>
+
+                <p id="edit-feedback" class="text-center mt-6 hidden text-gray-300"></p>
+
+                <form id="time-edit-form" class="space-y-6 pt-4 hidden">
+                    <div class="h-px bg-gray-600"></div>
+                    <h4 class="text-lg font-semibold text-white">Modify Prayer Times:</h4>
+
+                    <div>
+                        <label for="edit-fajr-time" class="block text-sm font-medium text-gray-300 mb-2">Fajr (Dawn)</label>
+                        <input type="time" id="edit-fajr-time" name="fajrTime" required class="input-time form-input-dark">
+                    </div>
+
+                    <div>
+                        <label for="edit-dhuhr-time" class="block text-sm font-medium text-gray-300 mb-2">Dhuhr (Noon)</label>
+                        <input type="time" id="edit-dhuhr-time" name="dhuhrTime" required class="input-time form-input-dark">
+                    </div>
+
+                    <div>
+                        <label for="edit-asr-time" class="block text-sm font-medium text-gray-300 mb-2">Asr (Afternoon)</label>
+                        <input type="time" id="edit-asr-time" name="asrTime" required class="input-time form-input-dark">
+                    </div>
+
+                    <div>
+                        <label for="edit-maghrib-time" class="block text-sm font-medium text-gray-300 mb-2">Maghrib (Sunset)</label>
+                        <input type="time" id="edit-maghrib-time" name="maghribTime" required class="input-time form-input-dark">
+                    </div>
+
+                    <div>
+                        <label for="edit-isha-time" class="block text-sm font-medium text-gray-300 mb-2">Isha'a (Night)</label>
+                        <input type="time" id="edit-isha-time" name="ishaTime" required class="input-time form-input-dark">
+                    </div>
+
+                    <div class="pt-4">
+                        <button type="submit" id="save-edit-btn" class="submit-button w-full text-lg">
+                            Save Edited Times
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<script type="module">
+    // ====================================================================
+    // JAVASCRIPT LOGIC - Enhanced for Atomic, Realtime Updates
+    // ====================================================================
+
+    // 1. Firebase Imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    // NOTE: Imported 'update' for atomic multi-path writes instead of 'set'
+    import { getDatabase, ref as dbRef, update, serverTimestamp, get, child } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
+    // 2. Firebase Configuration
+    const firebaseConfig = {
+        // !!! REPLACE THESE WITH YOUR ACTUAL FIREBASE CONFIGURATION !!!
+        apiKey: "AIzaSyByJOqTUojiL1wN7_i_cHMAukuJWzIZVck",
+        authDomain: "clothsuggest.firebaseapp.com",
+        databaseURL: "https://clothsuggest-default-rtdb.firebaseio.com/",
+        projectId: "clothsuggest",
+        messagingSenderId: "758790774735",
+        appId: "1:758790774735:web:5f5ea17048273416cd7cba",
+        measurementId: "G-4H8WZL0S4F"
+    };
+
+    // 3. Initialize Firebase Services
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRootRef = dbRef(db); // Reference to the database root
+
+    // 4. DOM Element References
+    const uploadModeContainer = document.getElementById("upload-mode-container");
+    const editModeContainer = document.getElementById("edit-mode-container");
+    const modeUploadBtn = document.getElementById("mode-upload-btn");
+    const modeEditBtn = document.getElementById("mode-edit-btn");
+
+    // Upload Mode Elements
+    const timeForm = document.getElementById("time-upload-form");
+    const feedbackMsg = document.getElementById("submission-feedback");
+
+    // Edit Mode Elements
+    const fetchTimesBtn = document.getElementById("fetch-times-btn");
+    const editDateValueInput = document.getElementById('edit-date-value');
+    const editFeedbackMsg = document.getElementById("edit-feedback");
+    const timeEditForm = document.getElementById("time-edit-form");
+
+    // Common Elements
+    const welcomeMessageH2 = document.getElementById("welcome-message");
+    const submitButton = timeForm.querySelector('.submit-button'); // Upload Button
+
+    // Input References (Upload Mode - reused for keys)
+    const dateValueInput = document.getElementById('date-value');
+    const fajrTimeInput = document.getElementById('fajr-time');
+    const dhuhrTimeInput = document.getElementById('dhuhr-time');
+    const asrTimeInput = document.getElementById('asr-time');
+    const maghribTimeInput = document.getElementById('maghrib-time');
+    const ishaTimeInput = document.getElementById('isha-time');
+
+    // Input References (Edit Mode)
+    const editFajrTimeInput = document.getElementById('edit-fajr-time');
+    const editDhuhrTimeInput = document.getElementById('edit-dhuhr-time');
+    const editAsrTimeInput = document.getElementById('edit-asr-time');
+    const editMaghribTimeInput = document.getElementById('edit-maghrib-time');
+    const editIshaTimeInput = document.getElementById('edit-isha-time');
+    const saveEditBtn = document.getElementById('save-edit-btn');
+
+
+    // ===================================================================
+    // MODE SWITCHING LOGIC
+    // ===================================================================
+    const switchMode = (mode) => {
+        if (mode === 'upload') {
+            uploadModeContainer.classList.remove('hidden');
+            editModeContainer.classList.add('hidden');
+            modeUploadBtn.classList.add('mode-button-active');
+            modeUploadBtn.classList.remove('mode-button-inactive');
+            modeEditBtn.classList.add('mode-button-inactive');
+            modeEditBtn.classList.remove('mode-button-active');
+        } else if (mode === 'edit') {
+            uploadModeContainer.classList.add('hidden');
+            editModeContainer.classList.remove('hidden');
+            modeEditBtn.classList.add('mode-button-active');
+            modeEditBtn.classList.remove('mode-button-inactive');
+            modeUploadBtn.classList.add('mode-button-inactive');
+            modeUploadBtn.classList.remove('mode-button-active');
+
+            // Hide the edit form initially when switching to edit mode
+            timeEditForm.classList.add('hidden');
+            editFeedbackMsg.classList.add('hidden');
+        }
+    };
+
+    modeUploadBtn.addEventListener('click', () => switchMode('upload'));
+    modeEditBtn.addEventListener('click', () => switchMode('edit'));
+
+
+    // ===================================================================
+    // 5. ANDROID INJECTION & SETUP
+    // ===================================================================
+    window.setUsernameFromAndroid = () => {
+        // Uses 'adminUsername' from localStorage set by Android
+        const posterUsername = localStorage.getItem('adminUsername');
+
+        if (posterUsername) {
+            const formattedUsername = posterUsername.charAt(0).toUpperCase() + posterUsername.slice(1);
+            welcomeMessageH2.textContent = `Welcome, ${formattedUsername}! (Hidden)`;
+            console.log(`Username received and stored: ${posterUsername}`);
+        } else {
+            welcomeMessageH2.textContent = "Welcome, Admin! (Hidden)";
+            console.warn("Admin username not found in localStorage after Android injection. Displaying default message.");
+        }
+    };
+
+
+    // ===================================================================
+    // 6. UPLOAD SUBMISSION FUNCTIONALITY (Existing Logic)
+    // ===================================================================
+    timeForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const adminUsername = localStorage.getItem('adminUsername');
+        if (!adminUsername) {
+            // ... (Error handling for missing username) ...
+            feedbackMsg.classList.remove('hidden');
+            feedbackMsg.textContent = "Error: Admin username is not set. Please log in again.";
+            feedbackMsg.className = "text-center mt-6 text-red-400 font-medium";
+            submitButton.disabled = false;
+            console.error("Submission failed: Admin username is missing.");
+            return;
+        }
+
+        submitButton.disabled = true;
+        feedbackMsg.classList.remove('hidden');
+        feedbackMsg.textContent = "Publishing all prayer times for the date...";
+        feedbackMsg.className = "text-center mt-6 text-blue-400";
+
+        try {
+            const dateValue = dateValueInput.value;
+            const fajrTime = fajrTimeInput.value;
+            const dhuhrTime = dhuhrTimeInput.value;
+            const asrTime = asrTimeInput.value;
+            const maghribTime = maghribTimeInput.value;
+            const ishaTime = ishaTimeInput.value;
+
+            const createPrayerData = (prayerName, time, date, poster) => ({
+                prayer: prayerName,
+                time: time,
+                date: date,
+                poster: poster,
+                timestamp: serverTimestamp()
+            });
+
+            const updates = {};
+            const basePath = `/prayerTimes/${dateValue}`;
+
+            updates[`${basePath}/Fajr`] = createPrayerData('Fajr', fajrTime, dateValue, adminUsername);
+            updates[`${basePath}/Dhuhr`] = createPrayerData('Dhuhr', dhuhrTime, dateValue, adminUsername);
+            updates[`${basePath}/Asr`] = createPrayerData('Asr', asrTime, dateValue, adminUsername);
+            updates[`${basePath}/Maghrib`] = createPrayerData('Maghrib', maghribTime, dateValue, adminUsername);
+            updates[`${basePath}/Isha`] = createPrayerData("Isha'a", ishaTime, dateValue, adminUsername);
+
+            await update(dbRootRef, updates); // Use dbRootRef for atomic update
+
+            console.log(`All prayer times updated atomically for date: ${dateValue}`);
+            feedbackMsg.textContent = `All five prayer times for ${dateValue} published successfully by ${adminUsername}! `;
+            feedbackMsg.className = "text-center mt-6 text-emerald-400 font-medium";
+            timeForm.reset();
+            submitButton.disabled = false;
+
+        } catch (error) {
+            console.error("Error adding prayer time update: ", error);
+            feedbackMsg.textContent = `Error: Could not publish prayer times. Please check console for details. ${error.message}`;
+            feedbackMsg.className = "text-center mt-6 text-red-400 font-medium";
+            submitButton.disabled = false;
+        }
+    });
+
+    // ===================================================================
+    // 7. EDIT TIMES FUNCTIONALITY (New Logic)
+    // ===================================================================
+
+    // Helper to clear and set feedback for edit mode
+    const setEditFeedback = (message, className) => {
+        editFeedbackMsg.classList.remove('hidden');
+        editFeedbackMsg.className = `text-center mt-6 ${className}`;
+        editFeedbackMsg.textContent = message;
+    }
+
+    // A. Fetch existing data for a date
+    fetchTimesBtn.addEventListener('click', async () => {
+        const dateValue = editDateValueInput.value;
+        timeEditForm.classList.add('hidden');
+        editFeedbackMsg.classList.add('hidden');
+
+        if (!dateValue) {
+            setEditFeedback("Please select a date.", "text-red-400 font-medium");
+            return;
+        }
+
+        fetchTimesBtn.disabled = true;
+        setEditFeedback(`Fetching times for ${dateValue}...`, "text-yellow-700");
+
+        try {
+            const dataPath = `prayerTimes/${dateValue}`;
+            const snapshot = await get(child(dbRootRef, dataPath));
+
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+
+                // Populate the Edit Form with fetched data
+                editFajrTimeInput.value = data.Fajr.time || '';
+                editDhuhrTimeInput.value = data.Dhuhr.time || '';
+                editAsrTimeInput.value = data.Asr.time || '';
+                editMaghribTimeInput.value = data.Maghrib.time || '';
+                editIshaTimeInput.value = data.Isha.time || '';
+
+                timeEditForm.classList.remove('hidden');
+                setEditFeedback(`Times for ${dateValue} loaded. You can now modify them.`, "text-emerald-400");
+            } else {
+                setEditFeedback(`No prayer times found for ${dateValue}.`, "text-yellow-400 font-medium");
+            }
+        } catch (error) {
+            console.error("Error fetching times: ", error);
+            setEditFeedback(`Error fetching data: ${error.message}`, "text-red-400 font-medium");
+        } finally {
+            fetchTimesBtn.disabled = false;
+        }
+    });
+
+    // B. Save the edited data
+    timeEditForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const dateValue = editDateValueInput.value;
+        const adminUsername = localStorage.getItem('adminUsername');
+
+        if (!adminUsername) {
+            setEditFeedback("Error: Admin username is not set. Cannot save edits.", "text-red-400 font-medium");
+            return;
+        }
+
+        saveEditBtn.disabled = true;
+        setEditFeedback(`Saving changes for ${dateValue}...`, "text-blue-400");
+
+        try {
+            // Get Form Values
+            const fajrTime = editFajrTimeInput.value;
+            const dhuhrTime = editDhuhrTimeInput.value;
+            const asrTime = editAsrTimeInput.value;
+            const maghribTime = editMaghribTimeInput.value;
+            const ishaTime = editIshaTimeInput.value;
+
+            // Prepare individual prayer data objects (reusing the helper logic)
+            const createPrayerData = (prayerName, time, date, poster) => ({
+                prayer: prayerName,
+                time: time,
+                date: date,
+                poster: poster,
+                timestamp: serverTimestamp()
+            });
+
+            // Construct the multi-path update object (same structure as upload)
+            const updates = {};
+            const basePath = `/prayerTimes/${dateValue}`;
+
+            updates[`${basePath}/Fajr`] = createPrayerData('Fajr', fajrTime, dateValue, adminUsername);
+            updates[`${basePath}/Dhuhr`] = createPrayerData('Dhuhr', dhuhrTime, dateValue, adminUsername);
+            updates[`${basePath}/Asr`] = createPrayerData('Asr', asrTime, dateValue, adminUsername);
+            updates[`${basePath}/Maghrib`] = createPrayerData('Maghrib', maghribTime, dateValue, adminUsername);
+            updates[`${basePath}/Isha`] = createPrayerData("Isha'a", ishaTime, dateValue, adminUsername);
+
+            // Use `update` on the root ref ('/')
+            await update(dbRootRef, updates);
+
+            setEditFeedback(`Successfully updated times for ${dateValue}!`, "text-emerald-400 font-medium");
+        } catch (error) {
+            console.error("Error saving edits: ", error);
+            setEditFeedback(`Error saving edits: ${error.message}`, "text-red-400 font-medium");
+        } finally {
+            saveEditBtn.disabled = false;
+        }
+    });
+
+</script>
+</body>
+</html>

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Islamic App Widgets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        /* Critical: Set html and body to full height and prevent main scrolling */
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #172B26;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* Use 100vh for the body */
+            height: 100vh;
+            padding: 10px; /* Reduced overall body padding */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .app-container {
+            max-width: 400px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            /* Reduced gap between widgets */
+            gap: 16px;
+            /* Let the container take up most of the body height */
+            height: 100%;
+            padding-top: 10px; /* Minimal internal padding */
+            padding-bottom: 10px;
+            /* Allow widgets to stretch/grow within the container */
+            justify-content: space-evenly;
+        }
+
+        /* Container for the Prayer Time Widget */
+        .widget-container {
+            width: 100%;
+        }
+
+        .widget-item {
+            background: #213A33;
+            border-radius: 18px;
+            /* Slightly reduced padding */
+            padding: 14px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            color: #E0E7E2;
+            height: 100%;
+        }
+
+        /* Styling for the new Event Summary container */
+        .event-container {
+            width: 100%;
+        }
+
+        .event-card {
+            background-color: #ffffff;
+            color: #1f2937;
+            border-radius: 18px;
+            /* Reduced padding on the card */
+            padding: 18px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        /* Event Animation */
+        .search-icon {
+            display: inline-block;
+            margin-right: 0.5rem;
+            animation: pulse-search 1.5s infinite ease-in-out;
+        }
+
+        @keyframes pulse-search {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 0.7;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="app-container">
+
+    <div class="widget-container">
+        <div class="widget-item">
+            <div class="flex flex-col h-full justify-between">
+                <span class="text-xs font-semibold px-2 py-1 rounded-md bg-white/10 text-white/80 w-fit mb-1">Current/Last Prayer</span>
+
+                <div id="current-prayer-info">
+                    <p class="text-base font-medium text-white/80" id="current-prayer-name">Loading...</p>
+                    <p class="text-3xl font-extrabold text-white mt-0 mb-1" id="current-prayer-time">--:--</p>
+                </div>
+
+                <p class="text-xs font-medium text-gray-400" id="next-prayer-countdown">...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="event-container">
+        <div id="event-summary" class="event-card">
+            <h1 class="text-xl font-extrabold text-gray-900 mb-1">Today's Events</h1>
+            <h2 id="current-date-display" class="text-sm font-semibold text-gray-700 mb-4"></h2>
+
+            <p id="event-count-message" class="text-lg font-bold text-emerald-600">
+            </p>
+
+            <p id="loading-status" class="text-center text-gray-500 text-xs font-medium mt-4 flex items-center justify-center">
+                <span id="search-animation" class="search-icon text-lg text-emerald-600">
+                    🔍
+                </span>
+                Checking for today's events...
+            </p>
+        </div>
+    </div>
+
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getDatabase, ref as dbRef, onValue, off } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
+    // --- Firebase Configuration ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyByJOqTUojiL1wN7_i_cHMAukuJWzIZVck",
+        authDomain: "clothsuggest.firebaseapp.com",
+        databaseURL: "https://clothsuggest-default-rtdb.firebaseio.com/",
+        projectId: "clothsuggest",
+        messagingSenderId: "758790774735",
+        appId: "1:758790774735:web:5f5ea17048273416cd7cba",
+        measurementId: "G-4H8WZL0S4F"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // ===================================================================
+    // PRAYER TIME WIDGET LOGIC
+    // ===================================================================
+
+    // --- State and Constants ---
+    let currentUsername = "Guest";
+    const PRAYER_ORDER = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+    let selectedDateKey = getTodayDateKey();
+    let prayerTimesListener = null;
+
+    // --- DOM Elements (Prayer Widget) ---
+    const currentPrayerNameP = document.getElementById('current-prayer-name');
+    const currentPrayerTimeP = document.getElementById('current-prayer-time');
+    const nextPrayerCountdownP = document.getElementById('next-prayer-countdown');
+
+    // --- Utility Functions (Prayer Widget) ---
+
+    function getTodayDateKey() {
+        // NOTE: TimeZone is hardcoded to 'Asia/Manila' (UTC+8).
+        const options = {
+            year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Manila'
+        };
+        const dateString = new Date().toLocaleDateString('en-US', options);
+        const [month, day, year] = dateString.split('/');
+        return `${year}-${month}-${day}`;
+    }
+
+    function formatTimeForDisplay(time24) {
+        if (!time24) return '--:--';
+        const [hour24, minute] = time24.split(':');
+        const hour = parseInt(hour24, 10);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${hour12}:${minute} ${ampm}`;
+    }
+
+    function getCurrentTimePST() {
+        // NOTE: TimeZone is hardcoded to 'Asia/Manila' (PST in this context).
+        const options = {
+            hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Manila'
+        };
+        return new Date().toLocaleTimeString('en-US', options);
+    }
+
+    function getPrayerIcon(prayerName) {
+        switch (prayerName) {
+            case 'Fajr': return '✨';
+            case 'Dhuhr': return '☀️';
+            case 'Asr': return '☁️';
+            case 'Maghrib': return '🌅';
+            case 'Isha': return '🌙';
+            default: return '🤲';
+        }
+    }
+
+    function calculateTimeUntil(targetTime24, currentTime24) {
+        const [tHour, tMinute] = targetTime24.split(':').map(Number);
+        const [cHour, cMinute] = currentTime24.split(':').map(Number);
+
+        let targetMins = tHour * 60 + tMinute;
+        let currentMins = cHour * 60 + cMinute;
+
+        let diffMins = targetMins - currentMins;
+
+        if (diffMins < 0) diffMins += 24 * 60;
+
+        const diffHours = Math.floor(diffMins / 60);
+        const remainingMinutes = diffMins % 60;
+
+        if (diffHours === 0) {
+            return `${remainingMinutes}m`;
+        } else if (remainingMinutes === 0) {
+            return `${diffHours}h`;
+        } else {
+            return `${diffHours}h ${remainingMinutes}m`;
+        }
+    }
+
+    // --- Firebase Logic for Time Widget Only ---
+
+    function updateTimeWidget(prayerTimesMap, isToday) {
+        let nextPrayerName = null;
+        let currentPrayerName = 'Isha';
+        let currentPrayerTime24 = prayerTimesMap['Isha'] || '--:--';
+        const currentTimePST = getCurrentTimePST();
+
+        if (isToday) {
+            // Find next prayer
+            for (const name of PRAYER_ORDER) {
+                const time24 = prayerTimesMap[name];
+                if (time24 && time24 > currentTimePST) {
+                    nextPrayerName = name;
+                    break;
+                }
+            }
+
+            // Determine the last completed/current prayer for the widget
+            if (nextPrayerName) {
+                const nextIndex = PRAYER_ORDER.indexOf(nextPrayerName);
+                if (nextIndex > 0) {
+                    currentPrayerName = PRAYER_ORDER[nextIndex - 1];
+                    currentPrayerTime24 = prayerTimesMap[currentPrayerName];
+                } else {
+                    currentPrayerName = 'Isha';
+                    currentPrayerTime24 = prayerTimesMap['Isha'];
+                }
+            } else {
+                // All prayers passed, next is Fajr tomorrow
+                nextPrayerName = 'Fajr';
+            }
+
+            // Update current/next prayer widget display
+            const nextPrayerTime24 = prayerTimesMap[nextPrayerName];
+
+            currentPrayerNameP.innerHTML = `${currentPrayerName} <span class="text-xl">${getPrayerIcon(currentPrayerName)}</span>`;
+            currentPrayerTimeP.textContent = formatTimeForDisplay(currentPrayerTime24);
+
+            if (nextPrayerName === 'Fajr' && prayerTimesMap['Isha'] && currentTimePST > prayerTimesMap['Isha']) {
+                nextPrayerCountdownP.textContent = "Next: Fajr tomorrow (Day reset)";
+            } else if (nextPrayerTime24) {
+                nextPrayerCountdownP.textContent = `${nextPrayerName} in ${calculateTimeUntil(nextPrayerTime24, currentTimePST)}`;
+            } else {
+                nextPrayerCountdownP.textContent = "Time calculation issue";
+            }
+
+        } else {
+            currentPrayerNameP.textContent = 'Data Not Today';
+            currentPrayerTimeP.textContent = '----';
+            nextPrayerCountdownP.textContent = 'Only today\'s data is tracked';
+        }
+    }
+
+    // The core function to fetch prayer times and update the widget
+    function fetchAndDisplayPrayerTimes(dateKey) {
+        if (prayerTimesListener) {
+             off(dbRef(db, `prayerTimes/${prayerTimesListener.dateKey}`), prayerTimesListener.callback);
+             prayerTimesListener = null;
+        }
+
+        const isToday = dateKey === getTodayDateKey();
+
+        currentPrayerNameP.textContent = 'Loading...';
+        currentPrayerTimeP.textContent = '--:--';
+        nextPrayerCountdownP.textContent = 'Fetching data...';
+
+        const timesPath = `prayerTimes/${dateKey}`;
+        const dateRef = dbRef(db, timesPath);
+
+        const timesCallback = (snapshot) => {
+            const timesData = snapshot.val();
+            const prayerTimesMap = {};
+
+            if (timesData) {
+                PRAYER_ORDER.forEach(name => {
+                    const entry = timesData[name];
+                    if (entry && entry.time) {
+                        prayerTimesMap[name] = entry.time;
+                    }
+                });
+
+                updateTimeWidget(prayerTimesMap, isToday);
+
+            } else {
+                currentPrayerNameP.textContent = 'No Times';
+                currentPrayerTimeP.textContent = '----';
+                nextPrayerCountdownP.textContent = 'Data missing for this date';
+            }
+        };
+
+        onValue(dateRef, timesCallback, (error) => {
+            console.error("Error fetching real-time prayer times: ", error);
+            currentPrayerNameP.textContent = 'Error!';
+            currentPrayerTimeP.textContent = '----';
+            nextPrayerCountdownP.textContent = 'Connection failed';
+            if (prayerTimesListener) off(dateRef, timesCallback);
+            prayerTimesListener = null;
+        });
+
+        prayerTimesListener = { ref: dateRef, callback: timesCallback, dateKey: dateKey };
+    }
+
+    window.setUsername = function(username) {
+        if (username && username.trim() !== "") {
+            currentUsername = username;
+        }
+    };
+
+
+    // ===================================================================
+    // EVENTS WIDGET LOGIC
+    // ===================================================================
+
+    // --- DOM Elements (Events Widget) ---
+    const eventCountMessage = document.getElementById('event-count-message');
+    const loadingStatus = document.getElementById('loading-status');
+    const currentDateDisplay = document.getElementById('current-date-display');
+    const searchAnimation = document.getElementById('search-animation');
+
+    // --- Utility Functions (Events Widget) ---
+
+    /** Formats date into YYYY-MM-DD string */
+    function formatDate(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    // --- Core Function: Fetch and Display Today's Events ---
+
+    /** Fetches all events and filters for today's events. */
+    function fetchAndDisplayTodayEvents() {
+        const today = new Date();
+        const todayString = formatDate(today);
+
+        currentDateDisplay.textContent = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        loadingStatus.classList.remove('hidden');
+        searchAnimation.classList.remove('hidden');
+
+        const eventsRef = dbRef(db, 'events');
+
+        onValue(eventsRef, (snapshot) => {
+            const data = snapshot.val();
+            let eventCount = 0;
+
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    const event = data[key];
+                    if (event.date === todayString) {
+                        eventCount++;
+                    }
+                });
+            }
+
+            renderEventCount(eventCount);
+            loadingStatus.classList.add('hidden');
+            searchAnimation.classList.add('hidden');
+
+        }, (error) => {
+            console.error("Firebase Read Error:", error);
+            loadingStatus.textContent = '❌ Error loading events.';
+            searchAnimation.classList.add('hidden');
+        });
+    }
+
+    /** Renders the event count message. */
+    function renderEventCount(count) {
+        eventCountMessage.classList.remove('text-red-500', 'text-emerald-600');
+        let message = '';
+
+        if (count > 0) {
+            const eventWord = count === 1 ? 'event' : 'events';
+            message = `You have ${count} ${eventWord} today. Please check it.`;
+            eventCountMessage.classList.add('text-emerald-600');
+        } else {
+            message = `No events today, Alhamdulillah!`;
+            eventCountMessage.classList.add('text-red-500');
+        }
+
+        eventCountMessage.textContent = message;
+    }
+
+
+    // ===================================================================
+    // INITIAL LOAD
+    // ===================================================================
+
+    fetchAndDisplayPrayerTimes(selectedDateKey);
+    fetchAndDisplayTodayEvents();
+
+</script>
+</body>
+</html>
