@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Next Prayer Time</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* ====================================================================
+        1. Base & Utilities (Copied from original for theme consistency)
+        ==================================================================== */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        :root {
+            --color-card-bg: #213A33; /* Darker green from the original card */
+            --color-primary-green: #10b981; /* Tailwind emerald-500 equivalent */
+            --color-text-light: #e5e7eb; /* Light text for dark backgrounds */
+            --color-text-medium: #a1a1aa; /* Muted text */
+            --color-border-dark: #374151; /* Darker border for contrast */
+        }
+
+        html {
+            background-color: var(--color-card-bg);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-card-bg);
+            color: var(--color-text-light);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        /* Styling for the central time display card */
+        .time-card {
+            background-color: #2c443e; /* Slightly lighter shade for the main card */
+            border-radius: 1rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--color-border-dark);
+        }
+
+        /* Loading spinner CSS */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid var(--color-primary-green);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="flex flex-col justify-center items-center">
+
+<main class="w-full flex-grow flex justify-center items-center p-4">
+    <div class="time-card w-full max-w-sm p-12 text-center space-y-8">
+
+        <h1 class="text-3xl font-bold text-emerald-400">Next Prayer Time</h1>
+
+        <div class="space-y-4 pt-4">
+
+            <div id="next-prayer-display" class="text-6xl font-extrabold text-emerald-500 transition-all duration-300">
+                <div class="flex justify-center items-center space-x-2 text-emerald-300">
+                    <div class="spinner"></div>
+                    <p class="text-lg">Connecting...</p>
+                </div>
+            </div>
+
+            <p id="feedback-message" class="text-xl font-medium text-gray-400 italic"></p>
+        </div>
+
+    </div>
+</main>
+
+<script type="module">
+        // ====================================================================
+        // JAVASCRIPT LOGIC (MODIFIED FOR PRAYER TIME ONLY)
+        // ====================================================================
+
+        // 1. Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+        import { getDatabase, ref as dbRef, onValue } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
+        // 2. Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyByJOqTUojiL1wN7_i_cHMAukuJWzIZVck",
+            authDomain: "clothsuggest.firebaseapp.com",
+            databaseURL: "https://clothsuggest-default-rtdb.firebaseio.com/",
+            projectId: "clothsuggest",
+            messagingSenderId: "758790774735",
+            appId: "1:758790774735:web:5f5ea17048273416cd7cba",
+            measurementId: "G-4H8WZL0S4F"
+        };
+
+        // 3. Initialize Firebase Services
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // 4. DOM Element References
+        // Removed currentTimeDisplay and currentDateDisplay
+        const nextPrayerDisplay = document.getElementById('next-prayer-display');
+        const feedbackMessage = document.getElementById('feedback-message');
+
+        let todayPrayerTimes = []; // To store the fetched prayer times
+
+        // --- Utility Functions ---
+
+        /** Converts a HH:MM time string to minutes past midnight. */
+        function timeToMinutes(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return (hours * 60) + minutes;
+        }
+
+        /** Gets today's date in 'YYYY-MM-DD' format. */
+        function getTodayDate() {
+            const d = new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // --- Real-Time Data Setup ---
+
+        /**
+         * Sets up the real-time listener to fetch and update prayer times for today.
+         */
+        function setupRealTimeUpdates() {
+            const dateString = getTodayDate();
+            const path = `prayerTimes/${dateString}`;
+            const dateRef = dbRef(db, path);
+
+            feedbackMessage.textContent = 'Awaiting real-time data...';
+
+            // onValue sets up a listener that runs immediately and then every time the data changes
+            onValue(dateRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    console.log("Real-time data update received:", data);
+
+                    // Process the fetched data
+                    todayPrayerTimes = [
+                        { name: 'Fajr', time: data.Fajr.time },
+                        { name: 'Dhuhr', time: data.Dhuhr.time },
+                        { name: 'Asr', time: data.Asr.time },
+                        { name: 'Maghrib', time: data.Maghrib.time },
+                        { name: "Isha'a", time: data.Isha.time }
+                    ].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+
+                    updateNextPrayer(); // Refresh the display immediately after a data change
+
+                } else {
+                    nextPrayerDisplay.innerHTML = `<span class="text-4xl font-extrabold text-red-400">--:--</span>`;
+                    feedbackMessage.textContent = `No data available for ${dateString}.`;
+                    todayPrayerTimes = [];
+                }
+            }, (error) => {
+                // Handle connection errors
+                console.error("Firebase Read Error:", error);
+                nextPrayerDisplay.innerHTML = `<span class="text-4xl font-extrabold text-red-400">Error</span>`;
+                feedbackMessage.textContent = `Connection Failed: ${error.message}`;
+                todayPrayerTimes = [];
+            });
+        }
+
+        // --- Next Prayer Logic ---
+
+        /**
+         * Finds and displays the time of the next upcoming prayer only.
+         */
+        function updateNextPrayer() {
+            if (todayPrayerTimes.length === 0) {
+                return;
+            }
+
+            const now = new Date();
+            const nowMinutes = (now.getHours() * 60) + now.getMinutes();
+
+            // Find the first prayer time that is in the future
+            let nextPrayer = todayPrayerTimes.find(p => timeToMinutes(p.time) > nowMinutes);
+
+            if (!nextPrayer) {
+                // If no prayer is left for today, show Fajr for tomorrow.
+                nextPrayer = todayPrayerTimes[0];
+
+                nextPrayerDisplay.textContent = nextPrayer.time;
+                feedbackMessage.textContent = `Tomorrow's ${nextPrayer.name}`;
+
+            } else {
+                // Found the next prayer for today
+                nextPrayerDisplay.textContent = nextPrayer.time;
+                feedbackMessage.textContent = `${nextPrayer.name} starts`;
+            }
+        }
+
+        /**
+         * Main function to check for the next prayer every second.
+         */
+        function updateChecker() {
+            if (todayPrayerTimes.length > 0) {
+                updateNextPrayer();
+            }
+        }
+
+        // --- Initialization ---
+
+        // 1. Start the real-time data listener.
+        setupRealTimeUpdates();
+
+        // 2. Start the interval to check for the next prayer every second.
+        setInterval(updateChecker, 1000);
+        
+    </script>
+</body>
+</html>

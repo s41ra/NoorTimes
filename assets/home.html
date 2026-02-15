@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prayer Widgets & Qibla Compass</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* ====================================================================
+        1. Base & Utilities (Combined from both files)
+        ==================================================================== */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #172B26; /* A deep, muted green/teal */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* Align to top */
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px 10px;
+            color: #E0E7E2;
+        }
+
+        /* Container for both sections */
+        #main-app-container {
+            max-width: 380px;
+            width: 100%;
+        }
+
+        /* ====================================================================
+        2. Prayer Widgets Styles
+        ==================================================================== */
+        .widget-container {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .widget-item {
+            background: #213A33;
+            border-radius: 18px;
+            padding: 16px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            color: #E0E7E2;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .widget-progress-circle {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            position: relative;
+        }
+
+        .progress-ring-base {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 8px solid rgba(94, 234, 212, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-ring-content {
+            text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .progress-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #5EEAD4;
+            border-radius: 50%;
+            transform: translateY(100%);
+            transition: transform 0.5s ease-out;
+            opacity: 0.2;
+            z-index: 5;
+        }
+
+        .progress-ring-check {
+            position: absolute;
+            top: -10px;
+            right: 0;
+            width: 24px;
+            height: 24px;
+            background-color: #10B981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: white;
+            z-index: 20;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.3s ease-out;
+        }
+
+        .show-check {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* ====================================================================
+        3. Qibla Compass Styles
+        ==================================================================== */
+        .compass-card {
+            background: #213A33;
+            border-radius: 18px; /* Matched widget radius */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Matched widget shadow */
+            padding: 20px 15px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        #compass-container {
+            position: relative;
+            width: 240px;
+            height: 240px;
+            margin: 15px auto;
+            border-radius: 50%;
+            background-color: #2D4941;
+            border: 6px solid #34D399;
+            box-shadow: 0 0 20px rgba(52, 211, 153, 0.7);
+        }
+
+        #compass-circle {
+            width: 100%;
+            height: 100%;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><circle cx="150" cy="150" r="140" fill="none" stroke="%2399F6E4" stroke-width="2"/><text x="150" y="20" font-family="Inter" font-size="20" fill="%23EF4444" text-anchor="middle">N</text><text x="280" y="155" font-family="Inter" font-size="20" fill="%2394A3B8" text-anchor="middle">E</text><text x="150" y="295" font-family="Inter" font-size="20" fill="%2394A3B8" text-anchor="middle">S</text><text x="20" y="155" font-family="Inter" font-size="20" fill="%2394A3B8" text-anchor="middle">W</text></svg>');
+            background-size: cover;
+        }
+
+        #qibla-arrow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -100%) rotate(0deg);
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 12px 100px 12px;
+            border-color: transparent transparent #FBBF24 transparent;
+            transform-origin: 50% 100%;
+            transition: transform 0.5s ease-out;
+            z-index: 10;
+        }
+
+        #qibla-direction-label {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1rem;
+            font-weight: 800;
+            color: #FBBF24;
+            text-align: center;
+            width: 100%;
+            text-shadow: 0 0 5px rgba(251, 191, 36, 0.4);
+        }
+
+        /* Consistent Color Variables */
+        .bg-gray-100-new { background-color: #2D4941; }
+        .text-emerald-600-new { color: #34D399; }
+        .text-gray-500-new { color: #A1A1AA; }
+        .text-gray-700-new { color: #E2E8F0; }
+    </style>
+</head>
+
+<body>
+
+<div id="main-app-container">
+
+    <div class="mb-5 text-center hidden">
+        <h1 class="text-2xl font-black text-white/90">
+            Assalamu Alaikum, <span id="welcome-username-span" class="text-emerald-400">Traveler</span>!
+        </h1>
+    </div>
+
+    <div class="widget-container grid grid-cols-2 gap-4">
+
+        <div class="widget-item" id="current-prayer-widget">
+            <div class="flex flex-col h-full justify-between">
+                <span class="text-xs font-semibold px-2 py-1 rounded-md bg-white/10 text-white/80 w-fit mb-2">Now</span>
+
+                <div id="current-prayer-info">
+                    <p class="text-lg font-medium text-white/80" id="current-prayer-name">Loading...</p>
+                    <p class="text-4xl font-extrabold text-white mt-1 mb-1" id="current-prayer-time">--:--</p>
+                </div>
+
+                <p class="text-xs font-medium text-gray-400" id="next-prayer-countdown">Fetching next prayer...</p>
+            </div>
+        </div>
+
+        <div class="widget-item" id="progress-widget">
+            <div class="widget-progress-circle">
+                <div class="progress-ring-base">
+                    <div class="progress-fill" id="progress-fill"></div>
+
+                    <div class="progress-ring-check" id="progress-ring-check">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4">
+                            <path fill-rule="evenodd" d="M19.916 4.626a.75.75 0 0 1 .208 1.054l-9.15 13.5c-.322.477-.942.668-1.464.444l-5.25-2.25a.75.75 0 0 1 .642-1.353l4.512 1.933 8.3-12.261a.75.75 0 0 1 1.054-.208Z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+
+                    <div class="progress-ring-content">
+                        <span class="text-4xl font-extrabold text-white block" id="progress-count">0/5</span>
+                        <span class="text-sm font-medium text-gray-400 block">prayed</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <div id="prayer-times-list" style="display: none;"></div>
+    <p id="current-date" style="display: none;"></p>
+    <p id="error-message" style="display: none;"></p>
+
+
+    <div class="compass-card">
+        <h2 class="text-2xl font-black text-emerald-600-new tracking-wider mb-4">Qibla Direction</h2>
+        <div id="compass-container">
+            <div id="compass-circle"></div>
+            <div id="qibla-arrow"></div>
+            <div id="qibla-direction-label">Calculating...</div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 text-center mt-4 w-full">
+            <div class="p-3 bg-gray-100-new rounded-lg">
+                <p class="text-xs font-medium text-gray-500-new">Qibla Angle</p>
+                <p id="qibla-angle-display" class="text-2xl font-extrabold text-emerald-600-new mt-1">--°</p>
+            </div>
+            <div class="p-3 bg-gray-100-new rounded-lg">
+                <p class="text-xs font-medium text-gray-500-new">Your Location</p>
+                <p id="coordinates-display" class="text-xs font-bold text-gray-700-new mt-2">-- / --</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
+<script type="module">
+    // --------------------------------------------------------------------
+    // PRAYER WIDGETS LOGIC (Retains Firebase connection and progress tracking)
+    // --------------------------------------------------------------------
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    // IMPORTED 'onValue' for real-time updates
+    import { getDatabase, ref as dbRef, get, update, onValue } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
+    // --- Firebase Configuration ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyByJOqTUojiL1wN7_i_cHMAukuJWzIZVck",
+        authDomain: "clothsuggest.firebaseapp.com",
+        databaseURL: "https://clothsuggest-default-rtdb.firebaseio.com/",
+        projectId: "clothsuggest",
+        messagingSenderId: "758790774735",
+        appId: "1:758790774735:web:5f5ea17048273416cd7cba",
+        measurementId: "G-4H8WZL0S4F"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // --- WIDGET DOM References ---
+    const currentDateP = document.getElementById('current-date');
+    const prayerTimesListDiv = document.getElementById('prayer-times-list');
+    const currentPrayerWidget = document.getElementById('current-prayer-widget');
+    const currentPrayerNameP = document.getElementById('current-prayer-name');
+    const currentPrayerTimeP = document.getElementById('current-prayer-time');
+    const nextPrayerCountdownP = document.getElementById('next-prayer-countdown');
+    const progressCountSpan = document.getElementById('progress-count');
+    const progressFillDiv = document.getElementById('progress-fill');
+    const progressCheckDiv = document.getElementById('progress-ring-check');
+
+    // --- GLOBAL STATE & CONSTANTS ---
+    const PRAYER_ORDER = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+    const totalPrayers = PRAYER_ORDER.length;
+
+    // 💡 UPDATED: Get the actual username via the Android bridge (will be used in progress path)
+    let currentUsername = 'user_signup_code_123'; // Default fallback
+
+    function initializeUsername() {
+        if (window.Android && typeof window.Android.getUsername === 'function') {
+            const username = window.Android.getUsername();
+            if (username && username !== "Traveler") {
+                currentUsername = username;
+                // Since this is the module script, we can also update the welcome message here
+                // NOTE: The element is now hidden in the HTML, but the logic remains for state use.
+                const welcomeSpan = document.getElementById('welcome-username-span');
+                if (welcomeSpan) {
+                    welcomeSpan.textContent = username;
+                }
+            }
+        }
+        console.log(`Using Firebase Username: ${currentUsername}`);
+        // 🚨 NEW: Start the listener right after determining the username
+        startProgressListener();
+    }
+
+    initializeUsername();
+
+    let currentNextPrayerName = null;
+    let currentPrayerName_STATE = null; // Added state for the currently displayed prayer
+
+    // --- Progress Logic (Updated for Real-time) ---
+    function getTodayDateKey() {
+        const options = {
+            year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Manila'
+        };
+        const dateString = new Date().toLocaleDateString('en-US', options);
+        const [month, day, year] = dateString.split('/');
+        return `${year}-${month}-${day}`;
+    }
+
+    // 💡 NEW FUNCTION: Setup Realtime Listener for Progress
+    function startProgressListener() {
+        const todayKey = getTodayDateKey();
+        const path = `Prayerprogress/${currentUsername}/${todayKey}/prayers`;
+        const progressRef = dbRef(db, path);
+
+        console.log(`Starting real-time progress listener for: ${path}`);
+
+        // Attach an asynchronous callback to listen for progress changes
+        onValue(progressRef, (snapshot) => {
+            const statusMap = snapshot.exists() ? snapshot.val() : {};
+            console.log("Real-time progress update received.");
+            updateProgressWidget(statusMap);
+        }, (error) => {
+            console.error("Error in real-time progress listener: ", error);
+        });
+    }
+
+    function updateProgressWidget(statusMap = {}) {
+        const completedItems = Object.values(statusMap).filter(v => v === true).length;
+
+        progressCountSpan.textContent = `${completedItems}/${totalPrayers}`;
+
+        const percentage = (completedItems / totalPrayers) * 100;
+        const translateValue = 100 - percentage;
+        progressFillDiv.style.transform = `translateY(${translateValue}%)`;
+
+        if (completedItems === totalPrayers) {
+            progressCheckDiv.classList.add('show-check');
+        } else {
+            progressCheckDiv.classList.remove('show-check');
+        }
+    }
+
+    async function savePrayerProgress(statusMap, dateKey) {
+        // 💡 UPDATED: Use currentUsername
+        const path = `Prayerprogress/${currentUsername}/${dateKey}/prayers`;
+        const progressRef = dbRef(db, path);
+        try {
+            await update(progressRef, statusMap);
+            console.log("Prayer progress saved successfully!");
+            // The real-time listener handles the UI update automatically now.
+        } catch (error) {
+            console.error("Error saving prayer progress: ", error);
+        }
+    }
+
+    async function loadPrayerProgress(dateKey) {
+        // 💡 UPDATED: Use currentUsername
+        const path = `Prayerprogress/${currentUsername}/${dateKey}/prayers`;
+        const progressRef = dbRef(db, path);
+        try {
+            const snapshot = await get(progressRef);
+            if (snapshot.exists()) {
+                return snapshot.val();
+            }
+            return {};
+        } catch (error) {
+            console.error("Error loading prayer progress: ", error);
+            return {};
+        }
+    }
+
+    async function handleMarkComplete() {
+        if (!currentPrayerName_STATE) {
+            console.log("Cannot mark complete: Current prayer name is unknown.");
+            return;
+        }
+
+        const todayKey = getTodayDateKey();
+        const savedStatus = await loadPrayerProgress(todayKey);
+
+        const prayerToMark = currentPrayerName_STATE;
+
+        const newStatus = { ...savedStatus };
+        // Toggle the status
+        newStatus[prayerToMark] = !newStatus[prayerToMark];
+
+        // Save the new status (This triggers the onValue listener to run updateProgressWidget)
+        await savePrayerProgress(newStatus, todayKey);
+    }
+
+    currentPrayerWidget.addEventListener('click', handleMarkComplete);
+
+    // --- EXISTING HELPER FUNCTIONS ---
+    function formatTimeForDisplay(time24) {
+        const [hour24, minute] = time24.split(':');
+        const hour = parseInt(hour24, 10);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${hour12}:${minute} ${ampm}`;
+    }
+
+    function getCurrentTimePST() {
+        const options = {
+            hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Manila'
+        };
+        const timeString = new Date().toLocaleTimeString('en-US', options);
+        return timeString;
+    }
+
+    function getPrayerIcon(prayerName) {
+        switch (prayerName) {
+            case 'Fajr': return '✨';
+            case 'Dhuhr': return '☀️';
+            case 'Asr': return '☁️';
+            case 'Maghrib': return '🌅';
+            case 'Isha': return '🌙';
+            default: return '🤲';
+        }
+    }
+
+    function calculateTimeUntil(targetTime24, currentTime24) {
+        const currentHours = parseInt(currentTime24.split(':')[0], 10);
+        const targetHours = parseInt(targetTime24.split(':')[0], 10);
+        let diffHours = targetHours - currentHours;
+        if (diffHours < 0) diffHours += 24;
+
+        if (diffHours === 0) return "Less than 1h";
+
+        return `${diffHours}h approx`;
+    }
+
+    async function fetchAndDisplayPrayerTimes() {
+        const todayKey = getTodayDateKey();
+
+        currentDateP.textContent = todayKey;
+        // Removed: updateProgressWidget({}); -> Now handled by the real-time listener
+        currentNextPrayerName = null;
+        currentPrayerName_STATE = null;
+
+        try {
+            const timesPath = `prayerTimes/${todayKey}`;
+            const dateRef = dbRef(db, timesPath);
+            const snapshot = await get(dateRef);
+
+            if (snapshot.exists()) {
+                const timesData = snapshot.val();
+                const prayerTimesMap = {};
+
+                PRAYER_ORDER.forEach(prayerName => {
+                    const prayerEntry = timesData[prayerName];
+                    if (prayerEntry && prayerEntry.time) {
+                        prayerTimesMap[prayerName] = prayerEntry.time;
+                    }
+                });
+
+                // --- Widget 1: Find Current & Next Prayer ---
+                const currentTimePST = getCurrentTimePST();
+                let nextPrayerName = null;
+                let nextPrayerTime24 = null;
+                let currentPrayerName = 'Isha';
+                let currentPrayerTime24 = prayerTimesMap['Isha'];
+
+                for (const name of PRAYER_ORDER) {
+                    const time24 = prayerTimesMap[name];
+                    if (time24 && time24 > currentTimePST) {
+                        nextPrayerName = name;
+                        nextPrayerTime24 = time24;
+                        break;
+                    }
+                }
+
+                if (!nextPrayerName) {
+                    nextPrayerName = 'Fajr';
+                    nextPrayerCountdownP.textContent = "Fajr tomorrow";
+                    currentPrayerName = 'Isha';
+                    currentPrayerTime24 = prayerTimesMap['Isha'];
+                } else {
+                    const nextIndex = PRAYER_ORDER.indexOf(nextPrayerName);
+                    if (nextIndex === 0) {
+                        currentPrayerName = 'Isha';
+                        currentPrayerTime24 = prayerTimesMap['Isha'];
+                    } else {
+                        currentPrayerName = PRAYER_ORDER[nextIndex - 1];
+                        currentPrayerTime24 = prayerTimesMap[currentPrayerName];
+                    }
+
+                    nextPrayerCountdownP.textContent = `${nextPrayerName} in ${calculateTimeUntil(nextPrayerTime24, currentTimePST)}`;
+                }
+
+                currentPrayerName_STATE = currentPrayerName; // Store the current prayer name for the click handler
+
+                // Update Widget 1 Display
+                if (currentPrayerTime24) {
+                    currentPrayerNameP.innerHTML = `${currentPrayerName} <span class="text-xl">${getPrayerIcon(currentPrayerName)}</span>`;
+                    currentPrayerTimeP.textContent = formatTimeForDisplay(currentPrayerTime24);
+                } else {
+                    currentPrayerNameP.textContent = "Time Not Set";
+                    currentPrayerTimeP.textContent = "--:--";
+                    nextPrayerCountdownP.textContent = "Unavailable";
+                }
+
+                // --- Load Saved Progress & Update Widget 2 ---
+                // Removed: const savedProgress = await loadPrayerProgress(todayKey);
+                // Removed: updateProgressWidget(savedProgress);
+                // -> Progress is now loaded and updated via startProgressListener's onValue listener
+
+                prayerTimesListDiv.innerHTML = '';
+
+            } else {
+                currentPrayerNameP.textContent = "No data";
+                currentPrayerTimeP.textContent = "--:--";
+                nextPrayerCountdownP.textContent = "No prayer times found for today.";
+                console.log(`No prayer times have been uploaded for today (${todayKey}).`);
+            }
+
+        } catch (error) {
+            console.error("Error in fetchAndDisplayPrayerTimes: ", error);
+            currentPrayerNameP.textContent = "Error";
+            currentPrayerTimeP.textContent = "Check Log";
+            nextPrayerCountdownP.textContent = "Data Error";
+        }
+    }
+
+    // Initial fetch and display for Prayer Widgets (to get current prayer name)
+    fetchAndDisplayPrayerTimes();
+</script>
+
+<script>
+    // --------------------------------------------------------------------
+    // JAVASCRIPT BRIDGE & QIBLA COMPASS LOGIC
+    // --------------------------------------------------------------------
+
+    /**
+     * Calls the Java 'Android.getUsername()' method to get the user's name
+     * and updates the display element.
+     */
+    function loadUsernameFromAndroid() {
+        const usernameSpan = document.getElementById('welcome-username-span');
+
+        // Check if the Android object is available (i.e., running inside the WebView)
+        if (window.Android && typeof window.Android.getUsername === 'function') {
+            const username = window.Android.getUsername();
+            if (username && username !== "Traveler") { // Check for the default fallback value
+                // Update the text, only if the module script hasn't already done it
+                if (usernameSpan && (usernameSpan.textContent === 'Traveler' || usernameSpan.textContent === 'Loading...')) {
+                    // Update the span content, even though the parent div is now hidden.
+                    usernameSpan.textContent = username;
+                }
+            }
+        } else {
+            // Fallback for testing outside the WebView or if the interface isn't registered
+            console.log("Android WebView Interface 'Android.getUsername' not available. Displaying default username.");
+        }
+    }
+
+    // Call the function to load the username as soon as possible
+    loadUsernameFromAndroid();
+
+    // --------------------------------------------------------------------
+    // QIBLA COMPASS LOGIC (Standalone, no dependencies on prayer times logic)
+    // --------------------------------------------------------------------
+
+    // --- CONSTANTS ---
+    const KAABA_LAT = 21.422477; // Latitude of Kaaba (Mecca)
+    const KAABA_LNG = 39.826197; // Longitude of Kaaba (Mecca)
+
+    // --- DOM Elements ---
+    const qiblaArrow = document.getElementById('qibla-arrow');
+    const qiblaAngleDisplay = document.getElementById('qibla-angle-display');
+    const coordinatesDisplay = document.getElementById('coordinates-display');
+    const qiblaDirectionLabel = document.getElementById('qibla-direction-label');
+
+    // --- STATE ---
+    let qiblaAngle = null;
+    let isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    // ====================================================================
+    // 1. QIBLA ANGLE CALCULATION
+    // ====================================================================
+
+    function calculateQibla(lat, lng) {
+        const latRad = lat * Math.PI / 180;
+        const lngRad = lng * Math.PI / 180;
+        const kaabaLatRad = KAABA_LAT * Math.PI / 180;
+        const kaabaLngRad = KAABA_LNG * Math.PI / 180;
+
+        const deltaLng = kaabaLngRad - lngRad;
+
+        const y = Math.sin(deltaLng);
+        const x = Math.cos(latRad) * Math.tan(kaabaLatRad) - Math.sin(latRad) * Math.cos(deltaLng);
+
+        let bearing = Math.atan2(y, x) * 180 / Math.PI;
+
+        // Normalize bearing to a 0-360 degree angle
+        return (bearing + 360) % 360;
+    }
+
+    // ====================================================================
+    // 2. DEVICE COMPASS LOGIC
+    // ====================================================================
+
+    function getCardinalDirection(angle) {
+        const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+        const index = Math.round(angle / (360 / directions.length)) % directions.length;
+        return directions[index];
+    }
+
+    function handleOrientation(event) {
+        if (qiblaAngle === null) return;
+
+        let heading = event.webkitCompassHeading || event.alpha;
+
+        if (heading === null || typeof heading === 'undefined') {
+            console.log("Sensor data unavailable. Point the red 'N' on the compass to True North.");
+            return;
+        }
+
+        const rotation = qiblaAngle - heading;
+        qiblaArrow.style.transform = `translate(-50%, -100%) rotate(${rotation}deg)`;
+
+        let relativeAngle = (qiblaAngle - heading + 360) % 360;
+        qiblaDirectionLabel.textContent = `Qibla: ${relativeAngle.toFixed(0)}° ${getCardinalDirection(relativeAngle)}`;
+
+        console.log("COMPASS ACTIVE: Hold device flat. Rotate until the gold arrow is vertical (0°)."); // Logging instead of showing message
+
+    }
+
+    function startCompass() {
+        if (isIOS && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission()
+                .then(response => {
+                    if (response === 'granted') {
+                        window.addEventListener('deviceorientation', handleOrientation, true);
+                        console.log("Permission granted. Calibrating compass...");
+                    } else {
+                        console.log("Compass permission denied. You must manually align to True North (N).");
+                    }
+                })
+                .catch(error => {
+                    console.log("Error enabling compass. You must manually align to True North (N).");
+                });
+        } else if (window.DeviceOrientationEvent) {
+            // Android and other browsers
+            window.addEventListener('deviceorientation', handleOrientation, true);
+            console.log("Compass attempting to start. Hold device flat.");
+        } else {
+            console.log("Device compass is not supported. Angle is calculated, but you must manually align to True North (N).");
+        }
+    }
+
+    // ====================================================================
+    // 3. GEOLOCATION AND INITIALIZATION
+    // ====================================================================
+
+    function successCallback(position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        coordinatesDisplay.textContent = `${lat.toFixed(4)}° / ${lng.toFixed(4)}°`;
+
+        qiblaAngle = calculateQibla(lat, lng);
+        qiblaAngleDisplay.textContent = `${qiblaAngle.toFixed(2)}°`;
+
+        // Initial Qibla arrow direction (aligned to True North)
+        qiblaArrow.style.transform = `translate(-50%, -100%) rotate(${qiblaAngle}deg)`;
+
+        qiblaDirectionLabel.textContent = `Qibla: ${qiblaAngle.toFixed(0)}° ${getCardinalDirection(qiblaAngle)}`;
+
+        console.log(`Qibla Angle calculated: ${qiblaAngle.toFixed(2)}° from True North. Attempting to start dynamic compass...`);
+
+        startCompass();
+    }
+
+    function errorCallback(error) {
+        console.log(`Error finding location: ${error.message}. Please enable location services.`);
+        coordinatesDisplay.textContent = 'Location Blocked';
+        qiblaDirectionLabel.textContent = 'Location Required';
+    }
+
+    function initQiblaFinder() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(successCallback, errorCallback, {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            });
+            console.log("Getting your current location...");
+        } else {
+            console.log("Geolocation is not supported by your browser.");
+            coordinatesDisplay.textContent = 'N/A';
+        }
+    }
+
+    // Auto-start the process when the window loads
+    window.addEventListener('load', initQiblaFinder);
+
+</script>
+</body>
+</html>

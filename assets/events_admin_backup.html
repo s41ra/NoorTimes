@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Events | Islamic App</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* ====================================================================
+        1. Base & Utilities (DARK THEME)
+        ==================================================================== */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #172B26; /* Dark Theme Background */
+            color: #f1f5f9; /* Tailwind slate-100 for default text */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            padding-top: 1px;
+        }
+
+        /* ====================================================================
+        2. Component Styles (DARK THEME)
+        ==================================================================== */
+        /* Event Card: Edges, No Rounding, Bottom Line Separator */
+        .event-card {
+            background: #213A33; /* Card Background */
+            border-radius: 0;
+            box-shadow: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            overflow: hidden;
+            border: none;
+            border-bottom: 1px solid #374151; /* Darker border for contrast */
+        }
+
+        .event-card:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Prominent Date/Time Block */
+        .datetime-block {
+            background-color: #059669; /* Tailwind emerald-600 - Brighter for contrast */
+            color: #ffffff;
+            font-weight: 600;
+            padding: 10px 14px;
+            border-radius: 12px;
+            text-align: center;
+            line-height: 1.1;
+            min-width: 80px;
+            flex-shrink: 0;
+        }
+
+        .datetime-block.archived-style {
+            background-color: #4b5563; /* Tailwind gray-600 for archived events */
+        }
+
+        .datetime-block .day-time {
+            font-size: 1.25rem;
+            font-weight: 800;
+        }
+
+        .datetime-block .month-year {
+            font-size: 0.7rem;
+            opacity: 0.85;
+            margin-top: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Style for event images */
+        .event-image {
+            width: 100%;
+            max-height: 250px;
+            object-fit: contain;
+            border-radius: 0;
+        }
+
+        /* Map Container */
+        .event-map-container {
+            height: 200px;
+            margin-top: 0;
+        }
+
+        /* Collapsable detail section (INITIALLY HIDDEN) */
+        .event-details-content {
+            display: none;
+            padding-top: 0;
+            border-top: 1px dashed #374151; /* Darker dashed line */
+            margin-top: 1rem;
+        }
+
+        /* Details Button (Link Style) */
+        .details-button {
+            border: none;
+            background-color: transparent;
+            color: #34d399; /* Tailwind emerald-400 */
+            padding: 0;
+            border-radius: 0;
+            font-weight: 500;
+            margin-top: 0.5rem;
+            transition: all 0.2s;
+            width: auto;
+            max-width: none;
+            font-size: 0.8rem;
+            text-decoration: underline;
+            text-align: left;
+            display: block;
+            cursor: pointer;
+        }
+
+        .details-button:hover {
+            background-color: transparent;
+            color: #10b981; /* Tailwind emerald-500 */
+        }
+
+        /* "Newest Event" badge */
+        .newest-badge {
+            display: inline-block;
+            background-color: #f97316; /* Orange */
+            color: white;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            border-radius: 9999px;
+            margin-left: 8px;
+            vertical-align: middle;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* "Past Event" badge */
+        .past-badge {
+            display: inline-block;
+            background-color: #4b5563; /* Gray */
+            color: white;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            border-radius: 9999px;
+            margin-left: 8px;
+            vertical-align: middle;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Field labels */
+        .field-label {
+            font-size: 0.7rem;
+            color: #94a3b8; /* Tailwind slate-400 - Light gray for labels */
+            font-weight: 600;
+            margin-bottom: 2px;
+            display: block;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* Comments Styling (Adjusted for dark theme) */
+        .comments-scroll-container {
+            max-height: 16rem;
+            overflow-y: auto;
+            margin-top: 0.5rem;
+            padding-right: 0.5rem;
+            scroll-behavior: smooth;
+        }
+
+        /* Comment Item Background */
+        .comment-item {
+            background-color: #2c473f; /* Darker gray for comment background */
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center">
+
+<main class="w-full pt-6">
+    <div class="flex items-center justify-between mb-6 px-4">
+        <h2 id="main-title" class="text-xl font-bold text-gray-100">Recent and Upcoming Events</h2>
+
+        <button id="archive-toggle-button"
+                class="text-sm font-semibold px-3 py-1 rounded-lg transition-colors"
+                data-view="upcoming"
+                style="background-color: #34d399; color: #172B26; border: none;">
+            View Previous Events
+        </button>
+    </div>
+
+    <div id="events-list" class="space-y-0">
+        <p id="loading-status" class="text-center text-gray-400 font-medium mt-12">Loading events...</p>
+    </div>
+</main>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script type="module">
+    // --- 1. Firebase Setup ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getDatabase, ref, onValue, query, orderByChild, push, remove, set } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
+    // WARNING: Replace with your actual Firebase Configuration object
+    const firebaseConfig = {
+        apiKey: "AIzaSyByJOqTUojiL1wN7_i_cHMAukuJWzIZVck",
+        authDomain: "clothsuggest.firebaseapp.com",
+        databaseURL: "https://clothsuggest-default-rtdb.firebaseio.com/",
+        projectId: "clothsuggest",
+        storageBucket: "clothsuggest.firebasestorage.app",
+        messagingSenderId: "758790774735",
+        appId: "1:758790774735:web:5f5ea17048273416cd7cba",
+        measurementId: "G-4H8WZL0S4F"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const eventsList = document.getElementById("events-list");
+    const loadingStatus = document.getElementById("loading-status");
+    const mainTitle = document.getElementById("main-title");
+    const archiveToggleButton = document.getElementById("archive-toggle-button");
+    const activeMaps = {}; // To store active Leaflet map instances for cleanup
+
+    let currentView = 'upcoming'; // State variable to track the current view
+
+    // --- 2. Android/User Personalization (Using remembered user info) ---
+    // The username is came from the provided signup code.
+    const CURRENT_USER_USERNAME = (window.Android && typeof window.Android.getUsername === 'function' ?
+        window.Android.getUsername() : "Anonymous") || "Anonymous";
+
+    // I am using an anonymous id.
+    const CURRENT_USER_ID = (window.Android && typeof window.Android.getUserId === 'function' ?
+        window.Android.getUserId() : "anon_user_xyz") || "anon_user_xyz";
+
+    // Store the attendance status locally to prevent rapid UI flashing
+    const userAttendanceStatus = {};
+
+
+    // --- 3. Utility Functions ---
+    /** Helper function for human-readable time (e.g., '5 minutes ago') */
+    function timeSince(date) {
+        if (!date) return 'Just now';
+        const seconds = Math.floor((new Date() - date) / 1000);
+        let interval = seconds / 31536000;
+        if (interval > 1) return Math.floor(interval) + " years ago";
+        interval = seconds / 2592000;
+        if (interval > 1) return Math.floor(interval) + " months ago";
+        interval = seconds / 86400;
+        if (interval > 1) return Math.floor(interval) + " days ago";
+        interval = seconds / 3600;
+        if (interval > 1) return Math.floor(interval) + " hours ago";
+        interval = seconds / 60;
+        if (interval > 1) return Math.floor(interval) + " minutes ago";
+        return Math.floor(seconds) + " seconds ago";
+    }
+
+    /** Function: Format time string (24h to 12h with AM/PM) */
+    function formatTime(time24h) {
+        if (!time24h || typeof time24h !== 'string') return 'TBD';
+        const parts = time24h.split(':');
+        if (parts.length !== 2) return time24h;
+        let hours = parseInt(parts[0], 10);
+        const minutes = parts[1];
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        return hours + ':' + minutes + ' ' + ampm;
+    }
+
+    /** Function to render a Leaflet map for a specific event */
+    function renderMap(mapId, lat, lng) {
+        if (isNaN(lat) || isNaN(lng) || activeMaps[mapId]) return;
+
+        setTimeout(() => {
+            if (document.getElementById(mapId)) {
+                if (typeof L === 'undefined') {
+                    console.error("Leaflet not loaded.");
+                    return;
+                }
+                // Check if map already exists (important for re-rendering)
+                if (activeMaps[mapId]) {
+                    activeMaps[mapId].remove();
+                    delete activeMaps[mapId];
+                }
+
+                const map = L.map(mapId).setView([lat, lng], 14);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+
+                // Marker for the event location
+                L.marker([lat, lng]).addTo(map)
+                    .bindPopup("<b>Event Location</b>")
+                    .openPopup();
+
+                activeMaps[mapId] = map;
+                map.invalidateSize();
+            }
+        }, 50);
+    }
+
+    /** Show In-Page Text Alert */
+    function showInPageAlert(eventId, message, type = 'success') {
+        const alertContainer = document.getElementById(`comment-alert-${eventId}`);
+        if (!alertContainer) return;
+
+        let bgColor = '';
+        let textColor = '';
+        let icon = '';
+
+        if (type === 'success') {
+            bgColor = 'bg-green-700';
+            textColor = 'text-green-200';
+            icon = '✅';
+        } else if (type === 'error') {
+            bgColor = 'bg-red-700';
+            textColor = 'text-red-200';
+            icon = '❌';
+        } else if (type === 'info') {
+            bgColor = 'bg-yellow-700';
+            textColor = 'text-yellow-200';
+            icon = '⚠️';
+        }
+
+        alertContainer.innerHTML = `
+            <div class="p-3 rounded-lg text-sm font-medium transition-opacity duration-300 ${bgColor} ${textColor}">
+                ${icon} ${message}
+            </div>
+        `;
+        alertContainer.style.opacity = 1;
+
+        // Automatically hide the alert after 3 seconds
+        setTimeout(() => {
+            alertContainer.style.opacity = 0;
+            setTimeout(() => alertContainer.innerHTML = '', 300); // Clear content after fade out
+        }, 3000);
+    }
+
+
+    // --- 4. Comment & Detail Functions ---
+
+    /** Delete Comment from Firebase. Only author is allowed to delete. */
+    window.deleteComment = function(eventId, commentId, commentUserId) {
+        // SECURITY CHECK: Only allow deletion if the comment was made by the current user
+        if (commentUserId !== CURRENT_USER_ID) {
+            showInPageAlert(eventId, "You can only delete your own comments.", 'error');
+            return;
+        }
+
+        const commentRef = ref(db, `comments/${eventId}/${commentId}`);
+
+        // Remove the comment from Firebase
+        remove(commentRef)
+            .then(() => {
+                console.log(`Comment ${commentId} deleted successfully.`);
+                showInPageAlert(eventId, "Your comment has been deleted.", 'success');
+                // UI update happens automatically via the onValue listener in renderComments
+            })
+            .catch((error) => {
+                console.error("Error deleting comment:", error);
+                showInPageAlert(eventId, "Failed to delete comment. Please try again.", 'error');
+            });
+    }
+
+    /** Render Comments for an Event with Real-time listener and Scroll to Top on New Comment */
+    function renderComments(eventId) {
+        const commentsRef = ref(db, `comments/${eventId}`);
+        const commentsContainer = document.getElementById(`comments-list-inner-${eventId}`);
+        const scrollContainer = document.getElementById(`comments-list-${eventId}`);
+
+        if (!commentsContainer || !scrollContainer) return;
+
+        // Listen for comment changes (Real-time core)
+        onValue(commentsRef, (snapshot) => {
+            const commentsData = snapshot.val();
+            let commentsHtml = '';
+
+            if (commentsData) {
+                const commentsArray = Object.keys(commentsData).map(key => ({
+                    id: key,
+                    ...commentsData[key]
+                }));
+
+                // Sort comments by timestamp, newest first
+                commentsArray.sort((a, b) => b.timestamp - a.timestamp);
+
+                commentsArray.forEach(comment => {
+                    const timeAgo = timeSince(comment.timestamp);
+                    const username = comment.username || 'Anonymous';
+                    const isCurrentUser = comment.userId === CURRENT_USER_ID;
+                    // Use the provided username from the Android interface for the current user
+                    const displayUsername = isCurrentUser ? CURRENT_USER_USERNAME : username;
+                    const currentUserIndicator = isCurrentUser ? ' (You)' : '';
+
+                    // Conditionally render the delete button ONLY if the user is the author
+                    const deleteButton = isCurrentUser ? `
+                        <button onclick="deleteComment('${eventId}', '${comment.id}', '${comment.userId}')"
+                            class="text-red-400 hover:text-red-500 text-xs font-semibold ml-2">
+                            Delete
+                        </button>` : '';
+
+                    commentsHtml += `
+                        <div class="p-3 comment-item rounded-lg mb-2">
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs font-bold text-gray-200">${displayUsername}${currentUserIndicator}</p>
+                                ${deleteButton}
+                            </div>
+                            <p class="text-sm text-gray-300 mt-1">${comment.text}</p>
+                            <p class="text-xs text-gray-400 mt-1">${timeAgo}</p>
+                        </div>
+                    `;
+                });
+            } else {
+                commentsHtml = `<p class="text-center text-sm text-gray-400 py-4">No comments yet. Be the first!</p>`;
+            }
+
+            // 1. Update the UI
+            commentsContainer.innerHTML = commentsHtml;
+
+            // 2. Scroll to top on new content (since comments are sorted newest-first)
+            scrollContainer.scrollTop = 0;
+
+        }, (error) => {
+            console.error(`Error loading comments for ${eventId}:`, error);
+            commentsContainer.innerHTML = `<p class="text-center text-sm text-red-400 py-4">Error loading comments.</p>`;
+        });
+    }
+
+    /** Post Comment to Firebase */
+    window.postComment = function(eventId) {
+        const commentInput = document.getElementById(`comment-input-${eventId}`);
+        const commentText = commentInput.value.trim();
+
+        if (!commentText) {
+            showInPageAlert(eventId, 'Please enter a comment before posting.', 'info');
+            return;
+        }
+
+        // Use the dynamically retrieved username and ID for posting
+        const newComment = {
+            userId: CURRENT_USER_ID,
+            username: CURRENT_USER_USERNAME,
+            text: commentText,
+            timestamp: Date.now()
+        };
+
+        const commentsRef = ref(db, `comments/${eventId}`);
+
+        // Push the new comment to Firebase
+        push(commentsRef, newComment)
+            .then(() => {
+                commentInput.value = ''; // Clear the input field on success
+                showInPageAlert(eventId, 'Comment posted successfully!', 'success');
+            })
+            .catch((error) => {
+                console.error("Error writing new comment to Firebase:", error);
+                showInPageAlert(eventId, 'Failed to post comment. Please try again.', 'error');
+            });
+    }
+
+
+    /** Toggle event details visibility (Shows Image/Map/Comments) */
+    window.toggleEventDetails = function(eventId, lat, lng) {
+        const detailsContent = document.getElementById(`details-content-${eventId}`);
+        const mapId = `map-${eventId}`;
+        const button = document.getElementById(`details-button-${eventId}`);
+
+        if (detailsContent.style.display === 'block') {
+            // Hide details
+            detailsContent.style.display = 'none';
+            button.textContent = 'View Details';
+        } else {
+            // Show details
+            detailsContent.style.display = 'block';
+            button.textContent = 'Hide Details';
+
+            if (lat && lng) {
+                renderMap(mapId, parseFloat(lat), parseFloat(lng));
+
+                // FIX: Invalidate map size after showing the container for mobile view
+                setTimeout(() => {
+                    if (activeMaps[mapId]) {
+                        activeMaps[mapId].invalidateSize();
+                    }
+                }, 100);
+            }
+
+            // Render comments when details are shown
+            renderComments(eventId);
+        }
+    }
+
+    // ===================================================================
+    // ATTENDANCE FUNCTIONS
+    // ===================================================================
+
+    /** Toggles the user's attendance status for an event */
+    window.updateAttendance = function(eventId) {
+        // Toggle logic: If user is in cache or button says 'Unjoin', they are joining (so we remove them)
+        const isJoining = userAttendanceStatus[eventId] !== true;
+        const attendanceRef = ref(db, `attendees/${eventId}/${CURRENT_USER_ID}`);
+
+        if (isJoining) {
+            // User is joining: Set their record
+            set(attendanceRef, {
+                username: CURRENT_USER_USERNAME,
+                timestamp: Date.now()
+            })
+            .then(() => {
+                // UI update will be handled by the onValue listener in renderAttendance
+            })
+            .catch(error => {
+                console.error("Error joining event:", error);
+            });
+        } else {
+            // User is unjoining: Remove their record
+            remove(attendanceRef)
+            .then(() => {
+                // UI update will be handled by the onValue listener in renderAttendance
+            })
+            .catch(error => {
+                console.error("Error unjoining event:", error);
+            });
+        }
+    }
+
+    /** Renders the attendance count and sets up real-time listener */
+    function renderAttendance(eventId) {
+        const attendeesRef = ref(db, `attendees/${eventId}`);
+        const countElement = document.getElementById(`attendees-count-${eventId}`);
+        const buttonElement = document.getElementById(`attendance-button-${eventId}`);
+
+        if (!countElement || !buttonElement) return;
+
+        // Listen for real-time changes
+        onValue(attendeesRef, (snapshot) => {
+            const attendees = snapshot.val();
+            let count = 0;
+            let isAttending = false;
+
+            if (attendees) {
+                const userIds = Object.keys(attendees);
+                count = userIds.length;
+                isAttending = !!attendees[CURRENT_USER_ID]; // Check if current user is an attendee
+            }
+
+            // Update UI
+            countElement.textContent = count;
+
+            // Update local status cache and button appearance based on real-time data
+            userAttendanceStatus[eventId] = isAttending;
+
+            if (isAttending) {
+                buttonElement.textContent = 'Unjoin ';
+                buttonElement.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+                // Use the yellow-brown color from the second code snippet
+                buttonElement.classList.add('bg-yellow-800', 'hover:bg-yellow-900');
+            } else {
+                buttonElement.textContent = 'Join ';
+                buttonElement.classList.remove('bg-yellow-800', 'hover:bg-yellow-900');
+                buttonElement.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+            }
+
+        }, (error) => {
+            console.error(`Error loading attendance for ${eventId}:`, error);
+        });
+    }
+
+    // A function to check initial attendance status (kept from second code for context)
+    function checkInitialAttendance(eventsArray) {
+        // Clear old status
+        Object.keys(userAttendanceStatus).forEach(key => delete userAttendanceStatus[key]);
+
+        eventsArray.forEach(event => {
+            const attendeesRef = ref(db, `attendees/${event.id}/${CURRENT_USER_ID}`);
+            onValue(attendeesRef, (snapshot) => {
+                userAttendanceStatus[event.id] = snapshot.exists();
+            }, { onlyOnce: true });
+        });
+    }
+
+    // ===================================================================
+    // MAIN DATA FETCHING AND RENDERING (FIXED STICKY HEADER BACKGROUND)
+    // ===================================================================
+
+    /** Fetches events from Firebase and renders them based on the currentView state. */
+    function fetchEvents(viewMode = 'upcoming') {
+        loadingStatus.classList.remove('hidden');
+        eventsList.innerHTML = '';
+        currentView = viewMode;
+
+        // Clear all existing map instances
+        Object.keys(activeMaps).forEach(mapId => {
+            if (activeMaps[mapId] && typeof activeMaps[mapId].remove === 'function') {
+                activeMaps[mapId].remove();
+            }
+        });
+        Object.keys(activeMaps).forEach(key => delete activeMaps[key]);
+
+        const now = new Date();
+        const todayString = now.toISOString().slice(0, 10);
+
+        // Date strings for archive filtering
+        const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const currentMonthStartString = firstDayOfCurrentMonth.toISOString().slice(0, 10);
+
+        // Update UI based on view mode
+        if (viewMode === 'upcoming') {
+            mainTitle.textContent = 'Recent and Upcoming Events';
+            archiveToggleButton.textContent = 'View Previous Events';
+            archiveToggleButton.style.backgroundColor = '#34d399';
+            archiveToggleButton.style.color = '#172B26';
+            archiveToggleButton.setAttribute('data-view', 'upcoming');
+        } else { // archive - MODIFIED TO SHOW ALL PAST EVENTS
+            mainTitle.textContent = 'All Previous Events (Archived)';
+            archiveToggleButton.textContent = 'View Upcoming Events';
+            archiveToggleButton.style.backgroundColor = '#4b5563';
+            archiveToggleButton.style.color = '#f1f5f9';
+            archiveToggleButton.setAttribute('data-view', 'archive');
+        }
+
+        // Query to get all events, ordered by date
+        const eventsQuery = query(ref(db, 'events'), orderByChild('date'));
+
+        onValue(eventsQuery, (snapshot) => {
+            const data = snapshot.val();
+            let eventHtml = '';
+            let hasEvents = false;
+            loadingStatus.classList.add('hidden');
+
+            if (data) {
+                const eventsArray = Object.keys(data).map(key => ({
+                    id: key,
+                    ...data[key]
+                }));
+
+                // Pre-check attendance status for all events to populate the cache
+                checkInitialAttendance(eventsArray);
+
+                // Filter events based on the current view mode
+                let filteredEvents = eventsArray.filter(event => {
+                    if (viewMode === 'upcoming') {
+                        // Include events that are today or in the future
+                        return event.date >= todayString;
+                    } else { // archive (MODIFIED TO SHOW ALL PAST EVENTS)
+                        // Include events that are strictly before the current month started
+                        return event.date < currentMonthStartString;
+                    }
+                });
+
+                // Sorting:
+                if (viewMode === 'upcoming') {
+                    // Ascending by date (oldest upcoming first)
+                    filteredEvents.sort((a, b) => a.date.localeCompare(b.date) || b.id.localeCompare(a.id));
+                } else { // archive
+                    // Descending by date (most recent previous event first)
+                    filteredEvents.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+                }
+
+                // Determine the newest uploaded upcoming event
+                const mostRecentlyUploadedUpcomingEventId = viewMode === 'upcoming' && eventsArray.length > 0
+                    ? [...eventsArray].sort((a, b) => b.id.localeCompare(a.id))
+                        .find(event => event.date >= todayString)?.id
+                    : null;
+
+                if (filteredEvents.length > 0) {
+                    hasEvents = true;
+
+                    // Group events by Month and Year for display in archive view
+                    let groupedEvents = {};
+
+                    filteredEvents.forEach(event => {
+                        const dateObj = new Date(event.date + 'T00:00:00');
+                        const day = dateObj.toLocaleDateString('en-US', { day: 'numeric' });
+                        const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
+                        const year = dateObj.toLocaleDateString('en-US', { year: '2-digit' });
+                        const formattedDateDay = `${day}`;
+                        const formattedDateMonthYear = `${month} '${year}`;
+                        const formattedTime = formatTime(event.time);
+                        const eventId = event.id;
+                        const mapId = `map-${event.id}`;
+
+                        let badge = '';
+                        let datetimeBlockClass = 'datetime-block';
+                        let isUpcoming = viewMode === 'upcoming';
+
+                        if (viewMode === 'upcoming' && eventId === mostRecentlyUploadedUpcomingEventId) {
+                            badge = '<span class="newest-badge">Newest Event</span>';
+                        } else if (viewMode === 'archive') {
+                            badge = '<span class="past-badge">Past Event</span>';
+                            datetimeBlockClass += ' archived-style';
+
+                            // Determine the group key (Month YYYY)
+                            const currentMonthYear = dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                            if (!groupedEvents[currentMonthYear]) {
+                                groupedEvents[currentMonthYear] = [];
+                            }
+                            // Store the raw event data with all calculated display strings
+                            groupedEvents[currentMonthYear].push({
+                                ...event,
+                                formattedDateDay,
+                                formattedDateMonthYear,
+                                formattedTime,
+                                badge,
+                                datetimeBlockClass,
+                                isUpcoming: false,
+                                mapId
+                            });
+                        }
+
+                        // Event Card HTML (Only for Upcoming view when built outside of the grouping logic)
+                        if (viewMode === 'upcoming') {
+                            eventHtml += `
+                                <div class="event-card">
+                                    <div class="p-5">
+                                        <div class="flex items-start">
+                                            <div class="${datetimeBlockClass}">
+                                                <div class="day-time">${formattedDateDay}</div>
+                                                <div class="month-year">${formattedDateMonthYear}</div>
+                                            </div>
+                                            <div class="ml-4 flex-1 min-w-0">
+                                                <h3 class="text-lg font-bold text-gray-100 leading-snug mb-1">
+                                                    ${event.title || 'Untitled Event'}
+                                                </h3>
+                                                <p class="field-label">Time of Event</p>
+                                                <p class="text-base font-semibold text-emerald-400 uppercase tracking-wide -mt-1 mb-2">
+                                                    ${formattedTime} ${badge}
+                                                </p>
+                                                ${event.poster ? `<p class="field-label mt-2">Posted by</p><p class="text-sm text-gray-300 font-semibold">${event.poster}</p>` : ''}
+
+                                                <button id="details-button-${eventId}"
+                                                    class="details-button"
+                                                    onclick="toggleEventDetails('${eventId}', '${event.latitude || ''}', '${event.longitude || ''}')">
+                                                    View Details
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        ${isUpcoming ? `
+                                            <div class="mt-4 flex items-center justify-between border-t border-gray-700 pt-3">
+                                                <div class="flex items-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-400 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                                                    </svg>
+                                                    <p class="text-sm text-gray-300 font-semibold">
+                                                        <span id="attendees-count-${eventId}">0</span> Joining
+                                                    </p>
+                                                </div>
+                                                <button id="attendance-button-${eventId}"
+                                                    class="px-4 py-2 text-white font-bold text-sm rounded-lg transition-colors"
+                                                    onclick="updateAttendance('${eventId}')">
+                                                    Loading...
+                                                </button>
+                                            </div>
+                                        ` : ''}
+
+                                        <div id="details-content-${eventId}" class="event-details-content">
+                                            <div class="px-5 pt-4">
+                                                <p class="field-label">Event Description (Summary)</p>
+                                                <p class="text-sm text-gray-300 leading-relaxed">${event.description || 'No summary provided.'}</p>
+
+                                                <p class="field-label mt-4">Extended Details</p>
+                                                <div class="text-sm text-gray-300 leading-relaxed">
+                                                    ${event.details || 'No extended details provided.'}
+                                                </div>
+                                            </div>
+
+                                            ${event.imageUrl ? `<img src="${event.imageUrl}" alt="Image for ${event.title || 'Event'}" class="event-image">` : `<div class="p-5 text-center text-sm text-gray-400 bg-gray-700/50">No image available.</div>`}
+
+                                            ${event.latitude && event.longitude ? `
+                                                <div class="mt-4">
+                                                    <p class="field-label">Location Map</p>
+                                                    <div id="${mapId}" class="event-map-container"></div>
+                                                </div>
+                                                <div class="p-5 pt-3">
+                                                    <a href="http://maps.google.com/?q=$${event.latitude},${event.longitude}" target="_blank" class="inline-flex items-center text-sm text-blue-400 hover:text-blue-300 font-medium">
+                                                        View on Google Maps (Directions)
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4m-7-3l2-2m-5-1l4-4 4 4M15 9V4" />
+                                                        </svg>
+                                                    </a>
+                                                </div>`
+                                            : `<div class="p-5 pt-0 text-center text-sm text-red-400">Location coordinates unavailable.</div>`}
+
+                                            <div class="p-5 pt-3">
+                                                <p class="field-label mb-2 border-t border-gray-700 pt-3">Community Comments</p>
+                                                <div id="comment-alert-${eventId}" style="opacity: 0; transition: opacity 0.3s ease-in-out;" class="mb-3"></div>
+
+                                                <div class="mb-2">
+                                                    <textarea id="comment-input-${eventId}" placeholder="Write your multi-line comment here..." rows="3"
+                                                        class="w-full p-3 border border-gray-600 rounded-lg text-base focus:border-emerald-500 focus:ring-emerald-500 resize-none bg-gray-700 text-gray-200"></textarea>
+                                                </div>
+                                                <div class="mb-4">
+                                                    <button onclick="postComment('${eventId}')"
+                                                        class="w-full px-4 py-2 bg-emerald-600 text-white font-medium text-sm rounded-lg hover:bg-emerald-700 transition">
+                                                        Post Comment
+                                                    </button>
+                                                </div>
+
+                                                <div id="comments-list-${eventId}" class="comments-scroll-container">
+                                                    <div id="comments-list-inner-${eventId}">
+                                                        <p class="text-center text-sm text-gray-400">Loading comments...</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+
+                    // For Archive view, group by month and build HTML with separators
+                    if (viewMode === 'archive') {
+                        // Keys are the month/year strings (e.g., "October 2025")
+                        const archiveMonths = Object.keys(groupedEvents).sort((a, b) => {
+                            // Convert month string back to date object for reliable sorting (descending)
+                            const dateA = new Date(a.replace(/(\w+) (\d+)/, '$1 1, $2'));
+                            const dateB = new Date(b.replace(/(\w+) (\d+)/, '$1 1, $2'));
+                            return dateB.getTime() - dateA.getTime();
+                        });
+
+                        archiveMonths.forEach(monthYear => {
+                            // Add a separator for the month
+                            // FIX: Changed 'bg-gray-700/50' to 'bg-gray-800' for full opacity.
+                            eventHtml += `
+                                <div class="bg-gray-800 text-gray-100 font-bold text-lg px-4 py-3 sticky top-0 z-10 border-y border-gray-600 mt-6 first:mt-0">
+                                    ${monthYear}
+                                </div>
+                            `;
+
+                            // Render cards for that month
+                            groupedEvents[monthYear].forEach(event => {
+                                eventHtml += `
+                                    <div class="event-card">
+                                        <div class="p-5">
+                                            <div class="flex items-start">
+                                                <div class="${event.datetimeBlockClass}">
+                                                    <div class="day-time">${event.formattedDateDay}</div>
+                                                    <div class="month-year">${event.formattedDateMonthYear}</div>
+                                                </div>
+                                                <div class="ml-4 flex-1 min-w-0">
+                                                    <h3 class="text-lg font-bold text-gray-100 leading-snug mb-1">
+                                                        ${event.title || 'Untitled Event'}
+                                                    </h3>
+                                                    <p class="field-label">Time of Event</p>
+                                                    <p class="text-base font-semibold text-gray-400 uppercase tracking-wide -mt-1 mb-2">
+                                                        ${event.formattedTime} ${event.badge}
+                                                    </p>
+                                                    ${event.poster ? `<p class="field-label mt-2">Posted by</p><p class="text-sm text-gray-300 font-semibold">${event.poster}</p>` : ''}
+
+                                                    <button id="details-button-${event.id}"
+                                                        class="details-button"
+                                                        onclick="toggleEventDetails('${event.id}', '${event.latitude || ''}', '${event.longitude || ''}')">
+                                                        View Details
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div id="details-content-${event.id}" class="event-details-content">
+                                                <div class="px-5 pt-4">
+                                                    <p class="field-label">Event Description (Summary)</p>
+                                                    <p class="text-sm text-gray-300 leading-relaxed">${event.description || 'No summary provided.'}</p>
+
+                                                    <p class="field-label mt-4">Extended Details</p>
+                                                    <div class="text-sm text-gray-300 leading-relaxed">
+                                                        ${event.details || 'No extended details provided.'}
+                                                    </div>
+                                                </div>
+
+                                                ${event.imageUrl ? `<img src="${event.imageUrl}" alt="Image for ${event.title || 'Event'}" class="event-image">` : `<div class="p-5 text-center text-sm text-gray-400 bg-gray-700/50">No image available.</div>`}
+
+                                                ${event.latitude && event.longitude ? `
+                                                    <div class="mt-4">
+                                                        <p class="field-label">Location Map</p>
+                                                        <div id="${event.mapId}" class="event-map-container"></div>
+                                                    </div>
+                                                    <div class="p-5 pt-3">
+                                                        <a href="http://maps.google.com/?q=$${event.latitude},${event.longitude}" target="_blank" class="inline-flex items-center text-sm text-blue-400 hover:text-blue-300 font-medium">
+                                                            View on Google Maps (Directions)
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4m-7-3l2-2m-5-1l4-4 4 4M15 9V4" />
+                                                            </svg>
+                                                        </a>
+                                                    </div>`
+                                                : `<div class="p-5 pt-0 text-center text-sm text-red-400">Location coordinates unavailable.</div>`}
+
+                                                <div class="p-5 pt-3">
+                                                    <p class="field-label mb-2 border-t border-gray-700 pt-3">Community Comments</p>
+                                                    <div id="comment-alert-${event.id}" style="opacity: 0; transition: opacity 0.3s ease-in-out;" class="mb-3"></div>
+
+                                                    <div class="mb-2">
+                                                        <textarea id="comment-input-${event.id}" placeholder="Write your multi-line comment here..." rows="3"
+                                                            class="w-full p-3 border border-gray-600 rounded-lg text-base focus:border-emerald-500 focus:ring-emerald-500 resize-none bg-gray-700 text-gray-200"></textarea>
+                                                    </div>
+                                                    <div class="mb-4">
+                                                        <button onclick="postComment('${event.id}')"
+                                                            class="w-full px-4 py-2 bg-emerald-600 text-white font-medium text-sm rounded-lg hover:bg-emerald-700 transition">
+                                                            Post Comment
+                                                        </button>
+                                                    </div>
+
+                                                    <div id="comments-list-${event.id}" class="comments-scroll-container">
+                                                        <div id="comments-list-inner-${event.id}">
+                                                            <p class="text-center text-sm text-gray-400">Loading comments...</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        });
+                    }
+                }
+
+                // Update the DOM
+                eventsList.innerHTML = eventHtml;
+
+                if (!hasEvents) {
+                    let message = '';
+                    if (viewMode === 'upcoming') {
+                        message = '🎉 No recent or upcoming events scheduled right now. Check back soon!';
+                    } else {
+                        message = `🗓️ No historical events found in the archive.`;
+                    }
+                    eventsList.innerHTML = `<p class="text-center text-gray-400 font-medium mt-12">${message}</p>`;
+                }
+
+                // IMPORTANT: Render attendance data for all currently displayed UPCOMING events
+                filteredEvents.forEach(event => {
+                    if (viewMode === 'upcoming') {
+                        renderAttendance(event.id);
+                    }
+                });
+
+            } else {
+                // No data in Firebase
+                eventsList.innerHTML = `<p class="text-center text-gray-400 font-medium mt-12">🎉 No events found in the database.</p>`;
+            }
+        }, (error) => {
+            // Handle Firebase read errors
+            console.error("Firebase Read Error:", error);
+            loadingStatus.classList.add('hidden');
+            eventsList.innerHTML = `<p class="text-center text-red-400 font-medium mt-12">❌ Error loading events: ${error.message}</p>`;
+        }, { onlyOnce: false });
+    }
+
+    // --- 6. Archive Toggle Event Listener ---
+    archiveToggleButton.addEventListener('click', () => {
+        const currentDataView = archiveToggleButton.getAttribute('data-view');
+        const newViewMode = currentDataView === 'upcoming' ? 'archive' : 'upcoming';
+        fetchEvents(newViewMode);
+    });
+
+    // Call the function when the script loads
+    fetchEvents(currentView);
+</script>
+
+</body>
+</html>
