@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_home_admin"
+        android:icon="@drawable/home"
+        android:title="Home" />
+    <item
+        android:id="@+id/nav_categories_admin"
+        android:icon="@drawable/calendar"
+        android:title="Calendar" />
+    <item
+        android:id="@+id/nav_cart_admin"
+        android:icon="@drawable/salah"
+        android:title="Prayer" />
+    <item
+        android:id="@+id/nav_orders_admin"
+        android:icon="@drawable/event"
+        android:title="Events" />
+    <item
+        android:id="@+id/nav_account_admin"
+        android:icon="@drawable/profile"
+        android:title="Account" />
+</menu>

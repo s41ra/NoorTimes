@@ -1,0 +1,218 @@
+<resources>
+    <string name="app_name">islamic</string>
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+
+    <string-array name="barangay_options">
+        <item>Select Barangay</item>
+
+        <item>Barangay 1-A</item>
+        <item>Barangay 2-A</item>
+        <item>Barangay 3-A</item>
+        <item>Barangay 4-A</item>
+        <item>Barangay 5-A</item>
+        <item>Barangay 6-A</item>
+        <item>Barangay 7-A</item>
+        <item>Barangay 8-A</item>
+        <item>Barangay 9-A</item>
+        <item>Barangay 10-A</item>
+        <item>Barangay 11-B</item>
+        <item>Barangay 12-B</item>
+        <item>Barangay 13-B</item>
+        <item>Barangay 14-B</item>
+        <item>Barangay 15-B</item>
+        <item>Barangay 16-B</item>
+        <item>Barangay 17-B</item>
+        <item>Barangay 18-B</item>
+        <item>Barangay 19-B</item>
+        <item>Barangay 20-B</item>
+        <item>Barangay 21-C</item>
+        <item>Barangay 22-C</item>
+        <item>Barangay 23-C</item>
+        <item>Barangay 24-C</item>
+        <item>Barangay 25-C</item>
+        <item>Barangay 26-C</item>
+        <item>Barangay 27-C</item>
+        <item>Barangay 28-C</item>
+        <item>Barangay 29-C</item>
+        <item>Barangay 30-C</item>
+        <item>Barangay 31-D</item>
+        <item>Barangay 32-D</item>
+        <item>Barangay 33-D</item>
+        <item>Barangay 34-D</item>
+        <item>Barangay 35-D</item>
+        <item>Barangay 36-D</item>
+        <item>Barangay 37-D</item>
+        <item>Barangay 38-D</item>
+        <item>Barangay 39-D</item>
+        <item>Barangay 40-D</item>
+
+        <item>Acacia</item>
+        <item>Agdao Proper</item>
+        <item>Alambre</item>
+        <item>Alejandra Navarro (Lasang)</item>
+        <item>Alfonso Angliongto Sr.</item>
+        <item>Angalan</item>
+        <item>Atan-Awe</item>
+        <item>Baganihan</item>
+        <item>Bago Aplaya</item>
+        <item>Bago Gallera</item>
+        <item>Bago Oshiro</item>
+        <item>Baguio Proper</item>
+        <item>Balengaeng</item>
+        <item>Baliok</item>
+        <item>Bangkas Heights</item>
+        <item>Bantol</item>
+        <item>Baracatan</item>
+        <item>Bato</item>
+        <item>Bayabas</item>
+        <item>Biao Escuela</item>
+        <item>Biao Guianga</item>
+        <item>Biao Joaquin</item>
+        <item>Binugao</item>
+        <item>Bucana</item>
+        <item>Buda</item>
+        <item>Buhangin Proper</item>
+        <item>Bunawan Proper</item>
+        <item>Cabantian</item>
+        <item>Cadalian</item>
+        <item>Calinan Proper</item>
+        <item>Callawa</item>
+        <item>Camansi</item>
+        <item>Carmen</item>
+        <item>Catigan</item>
+        <item>Catalunan Grande</item>
+        <item>Catalunan Pequeño</item>
+        <item>Cawayan</item>
+        <item>Centro (San Juan)</item>
+        <item>Colosas</item>
+        <item>Communal</item>
+        <item>Crossing Bayabas</item>
+        <item>Dacudao</item>
+        <item>Dalag</item>
+        <item>Dalagdag</item>
+        <item>Daliao</item>
+        <item>Daliaon Plantation</item>
+        <item>Datu Salumay</item>
+        <item>Dominga</item>
+        <item>Dumoy</item>
+        <item>Eden</item>
+        <item>Fatima (Benowang)</item>
+        <item>Gatungan</item>
+        <item>Gov. Paciano Bangoy</item>
+        <item>Gov. Vicente Duterte</item>
+        <item>Gumalang</item>
+        <item>Gumitan</item>
+        <item>Ilang</item>
+        <item>Indangan</item>
+        <item>Inayangan</item>
+        <item>Kap. Tomas Monteverde Sr.</item>
+        <item>Kilate</item>
+        <item>Lacson</item>
+        <item>Lamanan</item>
+        <item>Lampianao</item>
+        <item>Langub</item>
+        <item>Lapu-Lapu</item>
+        <item>Leon Garcia</item>
+        <item>Lizada</item>
+        <item>Los Amigos</item>
+        <item>Lubogan</item>
+        <item>Lumiad</item>
+        <item>Ma-a</item>
+        <item>Mabuhay</item>
+        <item>Magtuod</item>
+        <item>Mahayag</item>
+        <item>Malabog</item>
+        <item>Malagos</item>
+        <item>Malamba</item>
+        <item>Mandug</item>
+        <item>Manambulan</item>
+        <item>Manuel Guianga</item>
+        <item>Mapula</item>
+        <item>Marapangi</item>
+        <item>Marilog Proper</item>
+        <item>Matina Aplaya</item>
+        <item>Matina Biao</item>
+        <item>Matina Crossing</item>
+        <item>Matina Pangi</item>
+        <item>Megkawayan</item>
+        <item>Mintal</item>
+        <item>Mudiang</item>
+        <item>Mulig</item>
+        <item>New Carmen</item>
+        <item>New Valencia</item>
+        <item>Panacan</item>
+        <item>Panalum</item>
+        <item>Pandaitan</item>
+        <item>Pangyan</item>
+        <item>Pampanga</item>
+        <item>Paquibato Proper</item>
+        <item>Paradise Embak</item>
+        <item>Quiboloy</item>
+        <item>Rafael Castillo</item>
+        <item>Riverside</item>
+        <item>Salapawan</item>
+        <item>Salaysay</item>
+        <item>Saloy</item>
+        <item>San Antonio</item>
+        <item>San Isidro (Licanan)</item>
+        <item>Santo Niño</item>
+        <item>Sasa</item>
+
+        <item>Sibulan</item>
+        <item>Sirawan</item>
+        <item>Sirib</item>
+        <item>Subasta</item>
+        <item>Suawan (Tuli)</item>
+        <item>Sumimao</item>
+        <item>Tacunan</item>
+        <item>Tagakpan</item>
+        <item>Tagluno</item>
+        <item>Tagurano</item>
+        <item>Talandang</item>
+        <item>Talomo Proper</item>
+        <item>Talomo River</item>
+        <item>Tamayong</item>
+        <item>Tambobong</item>
+        <item>Tamugan</item>
+        <item>Tapak</item>
+        <item>Tawan-Tawan</item>
+        <item>Tibungco</item>
+        <item>Tigatto</item>
+        <item>Toril Proper</item>
+        <item>Tugbok Proper</item>
+        <item>Tungkalan</item>
+        <item>Ubalde</item>
+        <item>Ula</item>
+        <item>Vicente Hizon Sr.</item>
+        <item>Waan</item>
+        <item>Wangan</item>
+        <item>Wilfredo Aquino</item>
+        <item>Wines</item>
+    </string-array>
+
+
+    <string-array name="province_options">
+        <item>Select Province</item>
+        <item>Davao del Sur</item>
+        <item>Davao de Oro</item>
+        <item>Davao del Norte</item>
+        <item>Davao Oriental</item>
+        <item>Davao Occidental</item>
+    </string-array>
+
+    <string-array name="city_municipality_options">
+        <item>Select City/Municipality</item>
+        <item>Davao City</item>
+        <item>Bansalan</item>
+        <item>Digos City</item>
+        <item>Hagonoy</item>
+        <item>Kiblawan</item>
+        <item>Magsaysay</item>
+        <item>Malalag</item>
+        <item>Matanao</item>
+        <item>Padada</item>
+        <item>Picong </item>
+        <item>Santa Cruz</item>
+        <item>Sulop</item>
+    </string-array>
+</resources>

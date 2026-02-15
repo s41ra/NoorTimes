@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#213A33"
+    tools:context=".clock">
+
+    <!-- Card Background (to match .time-card style) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/time_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="32dp"
+        android:padding="48dp"
+        android:background="#2c443e"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintWidth_percent="0.9"
+        app:layout_constraintDimensionRatio="H,1:1"
+        android:elevation="8dp"
+        android:translationZ="8dp"
+        android:outlineProvider="background"
+        tools:layout_height="400dp">
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/text_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Next Prayer Time"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#34D399"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="16dp" />
+
+        <!-- Next Prayer Time Display (Main Clock) -->
+        <TextView
+            android:id="@+id/next_prayer_display"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="--:--"
+            android:textSize="72sp"
+            android:textStyle="bold"
+            android:textColor="#10B981"
+            android:layout_marginTop="32dp"
+            app:layout_constraintTop_toBottomOf="@id/text_title"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Feedback Message (e.g., Fajr starts) -->
+        <TextView
+            android:id="@+id/feedback_message"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Loading prayer times..."
+            android:textSize="18sp"
+            android:textStyle="italic"
+            android:textColor="#A1A1AA"
+            android:layout_marginTop="16dp"
+            app:layout_constraintTop_toBottomOf="@id/next_prayer_display"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Progress/Loading Indicator (Spinner) -->
+        <ProgressBar
+            android:id="@+id/progress_spinner"
+            style="?android:attr/progressBarStyle"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:indeterminateTint="#10B981"
+            app:layout_constraintTop_toTopOf="@id/next_prayer_display"
+            app:layout_constraintBottom_toBottomOf="@id/next_prayer_display"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

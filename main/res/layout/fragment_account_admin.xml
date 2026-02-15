@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg"
+    tools:context=".AccountFragment_admin">
+
+    <FrameLayout
+        android:id="@+id/header_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:background="@drawable/frosted_header_background"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:id="@+id/title_subtitle_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Account"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/black" />
+
+            <ImageButton
+                android:id="@+id/logout_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@android:drawable/ic_lock_power_off"
+                android:contentDescription="Logout"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="8dp"
+                app:tint="@android:color/black" />
+
+        </LinearLayout>
+    </FrameLayout>
+
+    <View
+        android:id="@+id/header_divider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_below="@id/header_container"
+        android:background="@android:color/darker_gray" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/header_divider"
+        android:fillViewport="true">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="16dp">
+
+            <Button
+                android:id="@+id/button_profile"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Profile"
+                android:minWidth="220dp"
+                android:layout_marginBottom="16dp" />
+            <Button
+                android:id="@+id/button_user_account"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="User Account"
+                android:minWidth="220dp"
+                android:layout_marginBottom="16dp" />
+
+            <Button
+                android:id="@+id/button_admin_account"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Admin Account"
+                android:minWidth="220dp"
+                android:layout_marginBottom="16dp" />
+            <Button
+                android:id="@+id/button_events"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Events"
+                android:minWidth="220dp"
+                android:layout_marginBottom="16dp" />
+
+            <Button
+                android:id="@+id/button_prayers"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Prayers"
+                android:minWidth="220dp"
+                android:layout_marginBottom="16dp" />
+
+            <Button
+                android:id="@+id/button_data_analytics"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Data Analytics"
+                android:minWidth="220dp"
+                android:layout_marginBottom="16dp" />
+            <Button
+                android:id="@+id/button_sms"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SMS"
+                android:minWidth="220dp" />
+        </LinearLayout>
+    </ScrollView>
+
+</RelativeLayout>
